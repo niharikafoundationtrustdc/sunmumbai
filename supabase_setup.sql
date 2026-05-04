@@ -688,7 +688,7 @@ INSERT INTO courses (name, code, department, duration, semesters, credits, fee_p
 
 -- Default Admin User
 INSERT INTO user_credentials (id, password, role, name, email) VALUES 
-('admin', 'Sungroup@123admin', 'SUPER_ADMIN', 'System Administrator', 'admin@sungroup.edu');
+('admin', 'sungroup@123admin', 'SUPER_ADMIN', 'System Administrator', 'admin@sungroup.edu');
 
 
 

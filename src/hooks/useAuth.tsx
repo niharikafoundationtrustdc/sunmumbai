@@ -19,7 +19,7 @@ const MOCK_USERS: Record<string, { user: User; pass: string }> = {
   },
   'admin': { 
     user: { id: '2', name: 'ARun', email: 'admin', role: 'COLLEGE_ADMIN', collegeId: 'c1' }, 
-    pass: '12345' 
+    pass: 'sungroup@123admin' 
   },
   'faculty': { 
     user: { id: '3', name: 'Dr. Anjali Verma', email: 'faculty', role: 'FACULTY', collegeId: 'c1' }, 
