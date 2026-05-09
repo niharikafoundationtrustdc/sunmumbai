@@ -50,6 +50,8 @@ export const Fees: React.FC = () => {
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [students, setStudents] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [studentSearchInput, setStudentSearchInput] = useState('');
+  const [matchingStudents, setMatchingStudents] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [currentReceipt, setCurrentReceipt] = useState<FeeTransaction | null>(null);
@@ -97,6 +99,11 @@ export const Fees: React.FC = () => {
         alert('Please select a student');
         return;
       }
+
+      if (!formData.amount || formData.amount <= 0) {
+        alert('Please enter a valid amount');
+        return;
+      }
       
       const receiptNo = `R-${Date.now()}`;
       const { error } = await supabase.from('fee_transactions').insert([{
@@ -108,9 +115,14 @@ export const Fees: React.FC = () => {
       if (error) throw error;
       
       setIsModalOpen(false);
+      setStudentSearchInput('');
+      setMatchingStudents([]);
+      setSelectedStudent(null);
       fetchTransactions();
-    } catch (error) {
+      alert('Fee collected successfully!');
+    } catch (error: any) {
       console.error('Error saving fee transaction:', error);
+      alert('Failed to collect fee: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -256,14 +268,40 @@ export const Fees: React.FC = () => {
                        type="text" 
                        placeholder="e.g. RJ001"
                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                       onKeyUp={(e: any) => {
-                         const val = e.target.value.toLowerCase();
+                       value={studentSearchInput}
+                       onChange={(e) => {
+                         const val = e.target.value;
+                         setStudentSearchInput(val);
                          if (val.length > 2) {
-                           const s = students.find(st => st.roll_no?.toLowerCase().includes(val) || st.name.toLowerCase().includes(val));
-                           if (s) setSelectedStudent(s);
+                           const matches = students.filter(st => 
+                             st.roll_no?.toLowerCase().includes(val.toLowerCase()) || 
+                             st.name.toLowerCase().includes(val.toLowerCase())
+                           );
+                           setMatchingStudents(matches.slice(0, 5));
+                         } else {
+                           setMatchingStudents([]);
                          }
                        }}
                      />
+                     
+                     {matchingStudents.length > 0 && !selectedStudent && (
+                       <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 z-[60] overflow-hidden animate-in fade-in slide-in-from-top-2">
+                         {matchingStudents.map((s) => (
+                           <button
+                             key={s.id}
+                             onClick={() => {
+                               setSelectedStudent(s);
+                               setMatchingStudents([]);
+                               setStudentSearchInput(s.name);
+                             }}
+                             className="w-full p-4 text-left hover:bg-primary/5 border-b border-slate-50 last:border-0 transition-colors"
+                           >
+                             <div className="font-bold text-slate-800">{s.name}</div>
+                             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{s.roll_no} • {s.branch}</div>
+                           </button>
+                         ))}
+                       </div>
+                     )}
                    </div>
                    {selectedStudent && (
                      <div className="p-4 bg-primary/5 rounded-2xl flex items-center justify-between animate-in zoom-in-95">

@@ -350,9 +350,10 @@ CREATE TABLE fee_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     student_id TEXT REFERENCES students(id),
     fee_id UUID REFERENCES fees(id),
-    amount_paid DECIMAL(10,2) NOT NULL,
+    category TEXT, -- Added category
+    amount DECIMAL(10,2) NOT NULL, -- Renamed from amount_paid
     payment_date DATE DEFAULT CURRENT_DATE,
-    payment_mode TEXT,
+    payment_method TEXT, -- Renamed from payment_mode
     transaction_id TEXT,
     remarks TEXT,
     status TEXT NOT NULL DEFAULT 'Completed',
@@ -540,17 +541,17 @@ CREATE TABLE student_document_records (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ORGANIZATIONAL SETTINGS (Seeded as defaults)
+-- (Any additional organizational settings can go here)
+
 -- =========================================================
--- RLS POLICIES (UNIVERSAL PERMISSIVE ACCESS)
+-- RLS POLICIES (UNIVERSAL PERMISSIVE ACCESS FOR DEMO)
 -- =========================================================
 
--- Disable RLS or set very open policies for the demo
--- We choose to ENABLE RLS but set completely open policies for ALL roles (anon, authenticated, etc)
-
+-- Enable RLS and set completely open policies for ALL roles (anon, authenticated, etc)
 DO $$ 
 DECLARE 
     t text;
-    pk_col text;
 BEGIN
     FOR t IN 
         SELECT table_name 
@@ -560,71 +561,27 @@ BEGIN
         EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
         
         -- Drop any existing policies first to avoid "already exists" errors
-        EXECUTE format('DROP POLICY IF EXISTS "Enable all for %I" ON %I', t, t);
         EXECUTE format('DROP POLICY IF EXISTS "Public Read %I" ON %I', t, t);
-        EXECUTE format('DROP POLICY IF EXISTS "Auth Manage %I" ON %I', t, t);
-        EXECUTE format('DROP POLICY IF EXISTS "Public Manage %I" ON %I', t, t);
         EXECUTE format('DROP POLICY IF EXISTS "Public Insert %I" ON %I', t, t);
         EXECUTE format('DROP POLICY IF EXISTS "Public Update %I" ON %I', t, t);
         EXECUTE format('DROP POLICY IF EXISTS "Public Delete %I" ON %I', t, t);
-        EXECUTE format('DROP POLICY IF EXISTS "Public All %I" ON %I', t, t);
-        EXECUTE format('DROP POLICY IF EXISTS "Enable Read for all %I" ON %I', t, t);
-        EXECUTE format('DROP POLICY IF EXISTS "Enable Insert for all %I" ON %I', t, t);
-        EXECUTE format('DROP POLICY IF EXISTS "Enable Update for all %I" ON %I', t, t);
-        EXECUTE format('DROP POLICY IF EXISTS "Enable Delete for all %I" ON %I', t, t);
-        EXECUTE format('DROP POLICY IF EXISTS "Enable All for all %I" ON %I', t, t);
-        EXECUTE format('DROP POLICY IF EXISTS "Enable Manage for all %I" ON %I', t, t);
         EXECUTE format('DROP POLICY IF EXISTS "Allow All" ON %I', t);
         
-        -- Create specific policies for operations to satisfy the linter's security checks
-        -- while maintaining broad access for the application demo.
-        
-        -- 1. Public Read (Linter allows USING (true) for SELECT)
+        -- Create broad policies to allow full functionality in the preview environment
+        -- 1. Public Read 
         EXECUTE format('CREATE POLICY "Public Read %I" ON %I FOR SELECT USING (true)', t, t);
         
-        -- 2. Public Insert (Use role check to avoid "always true" warning)
-        EXECUTE format('CREATE POLICY "Public Insert %I" ON %I FOR INSERT TO anon, authenticated WITH CHECK (auth.role() IS NOT NULL)', t, t);
+        -- 2. Public Insert
+        EXECUTE format('CREATE POLICY "Public Insert %I" ON %I FOR INSERT TO anon, authenticated WITH CHECK (true)', t, t);
         
         -- 3. Public Update
-        EXECUTE format('CREATE POLICY "Public Update %I" ON %I FOR UPDATE TO anon, authenticated USING (auth.role() IS NOT NULL) WITH CHECK (auth.role() IS NOT NULL)', t, t);
+        EXECUTE format('CREATE POLICY "Public Update %I" ON %I FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true)', t, t);
         
         -- 4. Public Delete
-        EXECUTE format('CREATE POLICY "Public Delete %I" ON %I FOR DELETE TO anon, authenticated USING (auth.role() IS NOT NULL)', t, t);
+        EXECUTE format('CREATE POLICY "Public Delete %I" ON %I FOR DELETE TO anon, authenticated USING (true)', t, t);
     END LOOP;
 END $$;
 
--- Clean up any specifically named policies mentioned in errors or logs
-DO $$ 
-BEGIN
-    -- Branches specific
-    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'branches') THEN
-        DROP POLICY IF EXISTS "Auth Manage Branches" ON branches;
-    END IF;
-    
-    -- Library specific (if it was somehow named differently)
-    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'library_items') THEN
-        DROP POLICY IF EXISTS "Enable All for all Library" ON library_items;
-        DROP POLICY IF EXISTS "Enable All for all Issues" ON library_issues;
-    END IF;
-END $$;
-
--- =========================================================
--- RPC SECURITY FIXES
--- =========================================================
-
--- Revoke public execute for functions that shouldn't be callable by anyone
-DO $$ 
-BEGIN
-    REVOKE EXECUTE ON FUNCTION public.is_connected() FROM public, anon, authenticated;
-    IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'add_column_if_missing') THEN
-        REVOKE EXECUTE ON FUNCTION public.add_column_if_missing(text, text, text) FROM public, anon, authenticated;
-    END IF;
-    IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'rls_auto_enable') THEN
-        REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM public, anon, authenticated;
-    END IF;
-END $$;
-
--- =========================================================
 -- STORAGE SETUP (Supabase Storage)
 -- =========================================================
 
@@ -633,41 +590,20 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('documents', 'documents', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Set up storage policies with pre-existence checks to avoid SQL errors
+-- Set up storage policies
 DO $$ 
 BEGIN
-    -- Clean up existing policies
     DROP POLICY IF EXISTS "Public Read Documents" ON storage.objects;
-    DROP POLICY IF EXISTS "Auth List Documents" ON storage.objects;
-    DROP POLICY IF EXISTS "Auth Upload Documents" ON storage.objects;
-    DROP POLICY IF EXISTS "Auth Manage Documents" ON storage.objects;
-    DROP POLICY IF EXISTS "Auth Delete Documents" ON storage.objects;
-    DROP POLICY IF EXISTS "Auth Update Documents" ON storage.objects;
     DROP POLICY IF EXISTS "Public List Documents" ON storage.objects;
     DROP POLICY IF EXISTS "Public Upload Documents" ON storage.objects;
     DROP POLICY IF EXISTS "Public Update Documents" ON storage.objects;
     DROP POLICY IF EXISTS "Public Delete Documents" ON storage.objects;
 
-    -- 1. Allow everyone to select from documents bucket (Wait, linter says not needed for public read)
-    -- If the bucket is public, we don't need a SELECT policy for object read access via URL.
-    -- We can keep it if we explicitly want to allow listing, but the linter warns against it.
-    -- Let's remove the broad SELECT policy to satisfy the linter.
-    DROP POLICY IF EXISTS "Public List Documents" ON storage.objects;
-
-    -- 2. Allow everyone to upload to documents bucket
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Upload Documents' AND tablename = 'objects' AND schemaname = 'storage') THEN
-        CREATE POLICY "Public Upload Documents" ON storage.objects FOR INSERT TO anon, authenticated WITH CHECK (bucket_id = 'documents' AND auth.role() IS NOT NULL);
-    END IF;
-
-    -- 3. Allow everyone to update documents
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Update Documents' AND tablename = 'objects' AND schemaname = 'storage') THEN
-        CREATE POLICY "Public Update Documents" ON storage.objects FOR UPDATE TO anon, authenticated USING (bucket_id = 'documents' AND auth.role() IS NOT NULL);
-    END IF;
-
-    -- 4. Allow everyone to delete documents
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Delete Documents' AND tablename = 'objects' AND schemaname = 'storage') THEN
-        CREATE POLICY "Public Delete Documents" ON storage.objects FOR DELETE TO anon, authenticated USING (bucket_id = 'documents' AND auth.role() IS NOT NULL);
-    END IF;
+    -- Standard storage policies
+    CREATE POLICY "Public Read Documents" ON storage.objects FOR SELECT USING (bucket_id = 'documents');
+    CREATE POLICY "Public Upload Documents" ON storage.objects FOR INSERT TO anon, authenticated WITH CHECK (bucket_id = 'documents');
+    CREATE POLICY "Public Update Documents" ON storage.objects FOR UPDATE TO anon, authenticated USING (bucket_id = 'documents');
+    CREATE POLICY "Public Delete Documents" ON storage.objects FOR DELETE TO anon, authenticated USING (bucket_id = 'documents');
 END $$;
 
 -- =========================================================
@@ -688,7 +624,7 @@ INSERT INTO courses (name, code, department, duration, semesters, credits, fee_p
 
 -- Default Admin User
 INSERT INTO user_credentials (id, password, role, name, email) VALUES 
-('admin', 'sungroup@123admin', 'SUPER_ADMIN', 'System Administrator', 'admin@sungroup.edu');
+('admin', 'Sungroup@123admin', 'SUPER_ADMIN', 'System Administrator', 'admin@sungroup.edu');
 
 
 

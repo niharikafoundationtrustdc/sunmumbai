@@ -41,6 +41,9 @@ export const StaffPanel: React.FC = () => {
   const [syllabi, setSyllabi] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [courseSearchInput, setCourseSearchInput] = useState('');
+  const [matchingCourses, setMatchingCourses] = useState<any[]>([]);
+  const [fetchingAttempted, setFetchingAttempted] = useState(false);
   
   // Attendance Filter State
   const [selectedCourse, setSelectedCourse] = useState<string>('');
@@ -108,6 +111,7 @@ export const StaffPanel: React.FC = () => {
   const fetchStudentsForAttendance = async () => {
     if (!selectedCourse) return;
     setIsLoading(true);
+    setFetchingAttempted(true);
     try {
       let query = supabase.from('students').select('id, name, roll_no, course_id, batch').eq('course_id', selectedCourse);
       if (selectedBatch) query = query.eq('batch', selectedBatch);
@@ -115,9 +119,12 @@ export const StaffPanel: React.FC = () => {
       const { data } = await query.order('name');
       if (data) {
         setStudents((data || []).map(s => ({ ...s, attendance_status: 'Present' })));
+      } else {
+        setStudents([]);
       }
     } catch (error) {
       console.error('Error fetching students:', error);
+      setStudents([]);
     } finally {
       setIsLoading(false);
     }
@@ -661,16 +668,49 @@ export const StaffPanel: React.FC = () => {
                </div>
 
                <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                 <div className="space-y-2">
-                   <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Course</label>
-                   <select 
-                     value={selectedCourse}
-                     onChange={(e) => setSelectedCourse(e.target.value)}
-                     className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                   >
-                     <option value="">Choose Course</option>
-                     {(courses || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                   </select>
+                 <div className="space-y-2 relative">
+                   <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Search Course</label>
+                   <div className="relative">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input 
+                        type="text"
+                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                        placeholder="Type course name..."
+                        value={courseSearchInput}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCourseSearchInput(val);
+                          if (val.length > 1) {
+                            setMatchingCourses(courses.filter(c => c.name.toLowerCase().includes(val.toLowerCase())).slice(0, 5));
+                          } else {
+                            setMatchingCourses([]);
+                          }
+                        }}
+                      />
+                   </div>
+                   {matchingCourses.length > 0 && !selectedCourse && (
+                     <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-100 z-[70] overflow-hidden">
+                       {matchingCourses.map(c => (
+                         <button
+                           key={c.id}
+                           className="w-full p-4 text-left hover:bg-primary/5 border-b border-slate-50 last:border-0"
+                           onClick={() => {
+                             setSelectedCourse(c.id);
+                             setCourseSearchInput(c.name);
+                             setMatchingCourses([]);
+                           }}
+                         >
+                           <div className="text-sm font-bold text-slate-800">{c.name}</div>
+                         </button>
+                       ))}
+                     </div>
+                   )}
+                   {selectedCourse && (
+                      <div className="mt-2 flex items-center justify-between p-2 bg-primary/5 rounded-xl border border-primary/10">
+                        <span className="text-[10px] font-black text-primary uppercase truncate max-w-[120px]">{courses.find(c => c.id === selectedCourse)?.name}</span>
+                        <button onClick={() => { setSelectedCourse(''); setCourseSearchInput(''); }} className="text-rose-500 font-bold p-1 hover:bg-rose-50 rounded-lg transition-colors">Change</button>
+                      </div>
+                   )}
                  </div>
                  <div className="space-y-2">
                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Section</label>
@@ -725,7 +765,7 @@ export const StaffPanel: React.FC = () => {
                  </div>
                </div>
 
-               {students.length > 0 && (
+               {fetchingAttempted && (
                  <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
                    <div className="p-8 border-b border-slate-50 flex items-center justify-between">
                      <h3 className="text-xl font-bold text-slate-800">Attendance Register</h3>
@@ -738,8 +778,11 @@ export const StaffPanel: React.FC = () => {
                        </button>
                        <button 
                          onClick={handleMarkAttendance}
-                         disabled={isSubmitting}
-                         className="px-6 py-3 bg-primary text-white rounded-xl text-xs font-black hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+                         disabled={isSubmitting || students.length === 0}
+                         className={cn(
+                           "px-6 py-3 bg-primary text-white rounded-xl text-xs font-black hover:bg-primary/90 transition-all shadow-lg shadow-primary/20",
+                           (isSubmitting || students.length === 0) && "opacity-50 cursor-not-allowed text-slate-300"
+                         )}
                        >
                          {isSubmitting ? 'Saving...' : 'Save Attendance'}
                        </button>
@@ -755,7 +798,7 @@ export const StaffPanel: React.FC = () => {
                          </tr>
                        </thead>
                        <tbody className="divide-y divide-slate-50">
-                         {students.map((student) => (
+                         {students.length > 0 ? students.map((student) => (
                            <tr key={student.id} className="hover:bg-slate-50 transition-colors">
                              <td className="px-8 py-5 text-sm font-mono font-bold text-slate-500">{student.roll_no}</td>
                              <td className="px-8 py-5 text-sm font-bold text-slate-800">{student.name}</td>
@@ -778,7 +821,19 @@ export const StaffPanel: React.FC = () => {
                                </div>
                              </td>
                            </tr>
-                         ))}
+                         )) : (
+                           <tr>
+                              <td colSpan={3} className="px-8 py-20 text-center">
+                                <div className="max-w-xs mx-auto space-y-3">
+                                  <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mx-auto">
+                                    <Users className="w-8 h-8" />
+                                  </div>
+                                  <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No students found</p>
+                                  <p className="text-[10px] text-slate-400">Ensure students are assigned to the selected course and batch.</p>
+                                </div>
+                              </td>
+                            </tr>
+                         )}
                        </tbody>
                      </table>
                    </div>

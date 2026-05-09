@@ -107,6 +107,9 @@ export const Students: React.FC = () => {
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const [newlySavedStudent, setNewlySavedStudent] = useState<Student | null>(null);
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; message?: string; details?: string }>({ connected: true });
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [bulkData, setBulkData] = useState('');
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
   const [settings, setSettings] = useState<any>({
     collegeName: 'Sun Group of Institutions',
     foundationName: 'Sri Kailashnath Foundation®',
@@ -646,6 +649,119 @@ export const Students: React.FC = () => {
     }
   };
 
+  const handleBulkUpload = async () => {
+    if (!bulkData.trim()) {
+      alert('Please enter some student data');
+      return;
+    }
+
+    setIsBulkSaving(true);
+    try {
+      // Refresh courses first
+      const currentCourses = await fetchCourses();
+      
+      const lines = bulkData.split('\n').filter(line => line.trim());
+      const studentsToInsert = [];
+      const credentialsToInsert = [];
+      const feesToInsert = [];
+      
+      const year = new Date().getFullYear();
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        // Split by Tab or Comma (careful with names like "SALFIYA ,")
+        const parts = line.split(/[\t,]/).map(p => p.trim());
+        
+        // Skip header if present
+        if (parts[0].toLowerCase().includes('sr') || parts[1]?.toLowerCase().includes('student name')) continue;
+        
+        if (parts.length >= 3) {
+          const name = parts[1];
+          const courseName = parts[2];
+          const branch = parts[3] || '';
+          const feeStr = parts[6] || '0';
+          const feeAmount = parseFloat(feeStr.replace(/[^\d.]/g, '')) || 0;
+          
+          if (!name) continue;
+
+          // Find course
+          let course = currentCourses.find(c => c.name.toLowerCase() === courseName.toLowerCase());
+          
+          // If course doesn't exist, create it
+          if (!course && courseName) {
+             const { data: newCourse, error: cError } = await supabase.from('courses').insert({
+               name: courseName,
+               branch: branch,
+               duration: parts[4] || '4 Years',
+               fee_amount: feeAmount
+             }).select().single();
+             
+             if (newCourse) {
+               course = newCourse;
+               currentCourses.push(newCourse); // Add to local list to avoid duplicates in same batch
+             }
+          }
+
+          const random = Math.floor(100000 + Math.random() * 900000);
+          const studentId = `STU${year}${random}${i}`; 
+          
+          studentsToInsert.push({
+            id: studentId,
+            name: name,
+            course_id: course?.id || null,
+            branch: branch,
+            status: 'Active',
+            created_at: new Date().toISOString()
+          });
+
+          credentialsToInsert.push({
+            id: studentId,
+            password: '12345',
+            role: 'STUDENT',
+            name: name
+          });
+
+          if (feeAmount > 0) {
+            feesToInsert.push({
+              student_id: studentId,
+              amount: feeAmount,
+              date: new Date().toISOString().split('T')[0],
+              status: 'PENDING',
+              description: `Admission Fee: ${courseName}`
+            });
+          }
+        }
+      }
+
+      if (studentsToInsert.length === 0) {
+        alert('No valid student records found in input.');
+        setIsBulkSaving(false);
+        return;
+      }
+
+      const { error: sError } = await supabase.from('students').insert(studentsToInsert);
+      if (sError) throw sError;
+
+      const { error: credError } = await supabase.from('user_credentials').insert(credentialsToInsert);
+      if (credError) console.error('Error inserting bulk credentials:', credError);
+
+      if (feesToInsert.length > 0) {
+        const { error: fError } = await supabase.from('fees').insert(feesToInsert);
+        if (fError) console.error('Error inserting bulk fees:', fError);
+      }
+
+      alert(`Successfully uploaded ${studentsToInsert.length} students!`);
+      setIsUploadModalOpen(false);
+      setBulkData('');
+      await fetchStudents();
+    } catch (err: any) {
+      console.error('Bulk upload failed:', err);
+      alert('Bulk upload failed: ' + err.message);
+    } finally {
+      setIsBulkSaving(false);
+    }
+  };
+
   const fetchStudentDocs = async (studentId: string) => {
     setIsLoadingDocs(true);
     const { data, error } = await supabase
@@ -1064,6 +1180,13 @@ export const Students: React.FC = () => {
           <p className="text-slate-500">Manage student records and registrations.</p>
         </div>
         <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setIsUploadModalOpen(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-indigo-50 text-indigo-600 rounded-xl font-bold hover:bg-indigo-100 transition-all border border-indigo-100"
+          >
+            <Upload className="w-5 h-5" />
+            Bulk Upload
+          </button>
           {view === 'list' ? (
             <button 
               onClick={() => setView('register')}
@@ -2762,6 +2885,97 @@ export const Students: React.FC = () => {
                     className="flex-1 sm:flex-none px-8 py-3 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
                   >
                     Close
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Student Bulk Upload Modal */}
+      <AnimatePresence>
+        {isUploadModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsUploadModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-4xl bg-white rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden"
+            >
+              <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-indigo-50/30">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Bulk Student Upload</h2>
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Import multiple students and link courses</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsUploadModalOpen(false)}
+                  className="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-xl transition-all font-bold text-2xl"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <div className="p-8 space-y-6">
+                <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="text-xs text-amber-700 leading-relaxed font-bold uppercase tracking-tight">
+                    Format: SR, Name, Course, Branch, Duration, Pattern, Fee. 
+                    One student per line. Header row is automatically skipped if present.
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Paste Content (CSV/Tab format)</label>
+                    <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded">Detected {bulkData.split('\n').filter(r => r.trim()).length} lines</span>
+                  </div>
+                  <textarea 
+                    value={bulkData}
+                    onChange={(e) => setBulkData(e.target.value)}
+                    placeholder="1, SALFIYA, Bachelor of Physiotherapy, Physiotherapy, 4 Years, Annual, 50000..."
+                    className="w-full h-80 p-6 bg-slate-50 border-none rounded-3xl text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-4 pt-4">
+                  <button 
+                    onClick={() => setIsUploadModalOpen(false)}
+                    className="px-6 py-3 text-slate-500 font-bold hover:text-primary transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleBulkUpload}
+                    disabled={isBulkSaving || !bulkData.trim()}
+                    className={cn(
+                      "px-8 py-3 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center gap-2",
+                      (isBulkSaving || !bulkData.trim()) && "opacity-50 cursor-not-allowed"
+                    )}
+                  >
+                    {isBulkSaving ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        Upload {bulkData.split('\n').filter(r => r.trim() && !r.toLowerCase().includes('student name')).length} Students
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

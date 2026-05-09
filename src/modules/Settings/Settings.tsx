@@ -42,9 +42,7 @@ export const Settings: React.FC = () => {
       email: 'admin@sungroupofinstitution.com',
       phone: '+91 22 1234 5678',
       logo: '',
-      signature: '',
-      apkUrl: '',
-      apkVersion: '1.0.0'
+      signature: ''
     };
   });
 
@@ -215,49 +213,13 @@ export const Settings: React.FC = () => {
     if (error) console.error(`Error saving ${key} settings:`, error);
   };
 
-  const handleFileUpload = (type: 'logo' | 'signature' | 'qrCode' | 'apk') => {
+  const handleFileUpload = (type: 'logo' | 'signature' | 'qrCode') => {
     const input = document.createElement('input');
     input.type = 'file';
-    
-    if (type === 'apk') {
-      input.accept = '.apk';
-    } else {
-      input.accept = 'image/*';
-    }
-
-    input.onchange = async (e: any) => {
+    input.accept = 'image/*';
+    input.onchange = (e: any) => {
       const file = e.target.files[0];
       if (file) {
-        if (type === 'apk') {
-          setIsSaving(true);
-          try {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `software/app-release-${Date.now()}.${fileExt}`;
-            
-            const { error: uploadError } = await supabase.storage
-              .from('documents')
-              .upload(fileName, file);
-
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage
-              .from('documents')
-              .getPublicUrl(fileName);
-
-            setGeneralSettings(prev => ({
-              ...prev,
-              apkUrl: publicUrl
-            }));
-            
-            alert('Software uploaded successfully!');
-          } catch (err: any) {
-            alert(`Failed to upload software: ${err.message}`);
-          } finally {
-            setIsSaving(false);
-          }
-          return;
-        }
-
         const reader = new FileReader();
         reader.onload = (event) => {
           if (type === 'qrCode') {
@@ -605,50 +567,6 @@ export const Settings: React.FC = () => {
                     className="w-full px-4 py-3 bg-background border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none"
                   />
                 </div>
-
-                <div className="md:col-span-2 p-6 bg-primary/5 rounded-2xl border border-primary/10 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-bold text-primary flex items-center gap-2 uppercase tracking-wider">
-                        <Upload className="w-4 h-4" />
-                        Mobile Application (APK)
-                      </h4>
-                      <p className="text-[10px] text-slate-500 font-medium">Upload the Android application for students and parents to download.</p>
-                    </div>
-                    <button 
-                      type="button"
-                      onClick={() => handleFileUpload('apk')}
-                      disabled={isSaving}
-                      className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90 transition-all flex items-center gap-2"
-                    >
-                      {isSaving ? 'Uploading...' : 'Upload APK'}
-                    </button>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 tracking-wider">APP VERSION</label>
-                      <input 
-                        type="text" 
-                        value={generalSettings.apkVersion || '1.0.0'}
-                        onChange={(e) => setGeneralSettings({...generalSettings, apkVersion: e.target.value})}
-                        placeholder="e.g. 1.0.4"
-                        className="w-full px-3 py-2 bg-white border border-primary/10 rounded-lg text-sm font-bold outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 tracking-wider">DOWNLOAD LINK</label>
-                      <input 
-                        type="text" 
-                        readOnly
-                        value={generalSettings.apkUrl || ''}
-                        placeholder="No file uploaded"
-                        className="w-full px-3 py-2 bg-white/50 border border-primary/10 rounded-lg text-xs font-medium text-slate-500 outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Website URL</label>
                   <div className="relative">

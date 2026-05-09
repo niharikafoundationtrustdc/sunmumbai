@@ -60,6 +60,11 @@ export const Results: React.FC = () => {
     status: 'Draft' as 'Draft' | 'Published'
   });
 
+  const [studentSearchInput, setStudentSearchInput] = useState('');
+  const [examSearchInput, setExamSearchInput] = useState('');
+  const [matchingStudents, setMatchingStudents] = useState<any[]>([]);
+  const [matchingExams, setMatchingExams] = useState<any[]>([]);
+
   const fetchSettings = async () => {
     const { data } = await supabase.from('app_settings').select('*');
     if (data) {
@@ -390,6 +395,8 @@ export const Results: React.FC = () => {
                   evaluated_sheet_url: '',
                   status: 'Draft'
                 });
+                setStudentSearchInput('');
+                setExamSearchInput('');
                 setIsEvaluationModalOpen(true);
               }}
               className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold bg-indigo-600 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 mr-2"
@@ -580,6 +587,8 @@ export const Results: React.FC = () => {
                                 evaluated_sheet_url: res.evaluatedSheetUrl || '',
                                 status: res.status_db === 'Published' ? 'Published' : 'Draft'
                               });
+                              setStudentSearchInput(res.studentName);
+                              setExamSearchInput(res.examTitle);
                               setIsEvaluationModalOpen(true);
                             }}
                             className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all font-sans"
@@ -655,30 +664,102 @@ export const Results: React.FC = () => {
               )}
 
               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Exam</label>
-                  <select 
-                    value={evalForm.exam_id}
-                    onChange={(e) => {
-                      const exam = exams_list.find(ex => ex.id === e.target.value);
-                      setEvalForm({ ...evalForm, exam_id: e.target.value, total_marks: exam?.total_marks || 100 });
-                    }}
-                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold outline-none"
-                  >
-                    <option value="">Select Exam</option>
-                    {exams_list.map(ex => <option key={ex.id} value={ex.id}>{ex.title} ({ex.subject})</option>)}
-                  </select>
+                <div className="space-y-2 relative">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Search Exam</label>
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input 
+                      type="text"
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold outline-none"
+                      placeholder="Type exam title..."
+                      value={examSearchInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setExamSearchInput(val);
+                        if (val.length > 2) {
+                          setMatchingExams(exams_list.filter(ex => 
+                            ex.title.toLowerCase().includes(val.toLowerCase()) || 
+                            ex.subject?.toLowerCase().includes(val.toLowerCase())
+                          ).slice(0, 5));
+                        } else {
+                          setMatchingExams([]);
+                        }
+                      }}
+                    />
+                  </div>
+                  {matchingExams.length > 0 && !evalForm.exam_id && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-100 z-[70] overflow-hidden">
+                      {matchingExams.map(ex => (
+                        <button
+                          key={ex.id}
+                          className="w-full p-3 text-left hover:bg-primary/5 border-b border-slate-50 last:border-0"
+                          onClick={() => {
+                            setEvalForm({ ...evalForm, exam_id: ex.id, total_marks: ex.total_marks || 100 });
+                            setExamSearchInput(ex.title);
+                            setMatchingExams([]);
+                          }}
+                        >
+                          <div className="text-sm font-bold text-slate-800">{ex.title}</div>
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{ex.subject}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {evalForm.exam_id && (
+                    <div className="mt-1 flex items-center justify-between p-2 bg-primary/5 rounded-lg border border-primary/10">
+                      <span className="text-xs font-bold text-primary truncate max-w-[150px]">{exams_list.find(e => e.id === evalForm.exam_id)?.title}</span>
+                      <button onClick={() => { setEvalForm({...evalForm, exam_id: ''}); setExamSearchInput(''); }} className="text-rose-500"><XCircle className="w-3 h-3"/></button>
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Student</label>
-                  <select 
-                    value={evalForm.student_id}
-                    onChange={(e) => setEvalForm({ ...evalForm, student_id: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold outline-none"
-                  >
-                    <option value="">Select Student</option>
-                    {students_list.map(s => <option key={s.id} value={s.id}>{s.name} ({s.roll_no})</option>)}
-                  </select>
+
+                <div className="space-y-2 relative">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Search Student</label>
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input 
+                      type="text"
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold outline-none"
+                      placeholder="Type student name/roll..."
+                      value={studentSearchInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setStudentSearchInput(val);
+                        if (val.length > 2) {
+                          setMatchingStudents(students_list.filter(s => 
+                            s.name.toLowerCase().includes(val.toLowerCase()) || 
+                            s.roll_no?.toLowerCase().includes(val.toLowerCase())
+                          ).slice(0, 5));
+                        } else {
+                          setMatchingStudents([]);
+                        }
+                      }}
+                    />
+                  </div>
+                  {matchingStudents.length > 0 && !evalForm.student_id && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-100 z-[70] overflow-hidden">
+                      {matchingStudents.map(s => (
+                        <button
+                          key={s.id}
+                          className="w-full p-3 text-left hover:bg-primary/5 border-b border-slate-50 last:border-0"
+                          onClick={() => {
+                            setEvalForm({ ...evalForm, student_id: s.id });
+                            setStudentSearchInput(s.name);
+                            setMatchingStudents([]);
+                          }}
+                        >
+                          <div className="text-sm font-bold text-slate-800">{s.name}</div>
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{s.roll_no}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {evalForm.student_id && (
+                    <div className="mt-1 flex items-center justify-between p-2 bg-primary/5 rounded-lg border border-primary/10">
+                      <span className="text-xs font-bold text-primary truncate max-w-[150px]">{students_list.find(s => s.id === evalForm.student_id)?.name}</span>
+                      <button onClick={() => { setEvalForm({...evalForm, student_id: ''}); setStudentSearchInput(''); }} className="text-rose-500"><XCircle className="w-3 h-3"/></button>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Marks Obtained</label>

@@ -21,12 +21,7 @@ export const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [settings, setSettings] = useState({ 
-    collegeName: 'College Management System', 
-    logo: '',
-    apkUrl: '',
-    apkVersion: ''
-  });
+  const [settings, setSettings] = useState({ collegeName: 'College Management System', logo: '' });
   const [authRole, setAuthRole] = useState<'ADMIN' | 'STUDENT' | 'PARENT' | 'STAFF' | 'ACCOUNTANT'>('ADMIN');
 
   useEffect(() => {
@@ -195,23 +190,10 @@ export const Login: React.FC = () => {
           </button>
         </form>
 
-        <div className="mt-6 md:mt-8 pt-6 border-t border-slate-100 text-center space-y-4">
+        <div className="mt-6 md:mt-8 pt-6 border-t border-slate-100 text-center">
           <p className="text-slate-500 font-medium text-sm">
             Don't have an account? <button className="text-accent font-bold hover:underline">Register Here</button>
           </p>
-          
-          {settings.apkUrl && (
-            <div className="pt-4 border-t border-slate-50">
-              <a 
-                href={settings.apkUrl}
-                download
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-bold hover:bg-emerald-100 transition-all border border-emerald-100"
-              >
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                Download Android App {settings.apkVersion && `(v${settings.apkVersion})`}
-              </a>
-            </div>
-          )}
         </div>
       </motion.div>
 

@@ -60,7 +60,6 @@ export const Dashboard: React.FC = () => {
   const [todayStudyActivities, setTodayStudyActivities] = useState<any[]>([]);
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; message: string; details?: string } | null>(null);
   const [collegeName, setCollegeName] = useState('EduNexus');
-  const [generalSettings, setGeneralSettings] = useState<any>(null);
 
   const [showTroubleshooting, setShowTroubleshooting] = useState(false);
 
@@ -76,11 +75,8 @@ export const Dashboard: React.FC = () => {
 
   const fetchCollegeName = async () => {
     const { data } = await supabase.from('app_settings').select('value').eq('key', 'general').single();
-    if (data?.value) {
-      setGeneralSettings(data.value);
-      if (data.value.collegeName) {
-        setCollegeName(data.value.collegeName);
-      }
+    if (data?.value?.collegeName) {
+      setCollegeName(data.value.collegeName);
     }
   };
 
@@ -367,16 +363,6 @@ export const Dashboard: React.FC = () => {
             >
               Generate Report
             </button>
-          )}
-          {generalSettings?.apkUrl && (
-            <a 
-              href={generalSettings.apkUrl}
-              download
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200"
-            >
-              <QrCode className="w-4 h-4" />
-              Download App {generalSettings.apkVersion && `(v${generalSettings.apkVersion})`}
-            </a>
           )}
         </div>
       </div>

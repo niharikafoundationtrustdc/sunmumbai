@@ -83,6 +83,9 @@ export const Faculty: React.FC = () => {
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; message?: string; details?: string }>({ connected: true });
   const [editingStaff, setEditingStaff] = useState<FacultyMember | null>(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [bulkData, setBulkData] = useState('');
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
 
   const [academicSettings, setAcademicSettings] = useState<any>({
     castes: ['General', 'OBC', 'SC', 'ST', 'EWS'],
@@ -376,6 +379,71 @@ export const Faculty: React.FC = () => {
     }, 2000);
   };
 
+  const handleBulkUpload = async () => {
+    if (!bulkData.trim()) {
+      alert('Please enter some data to upload');
+      return;
+    }
+
+    setIsBulkSaving(true);
+    try {
+      const rows = bulkData.split('\n').filter(row => row.trim());
+      const staffToInsert = [];
+      
+      const year = new Date().getFullYear();
+
+      for (const row of rows) {
+        // Support Tab, Comma, or Semicolon separation
+        const parts = row.split(/[\t,;]/);
+        if (parts.length >= 1) {
+          const name = parts[0].trim();
+          const designation = parts[1] ? parts[1].trim() : 'Staff';
+          
+          if (name && name.toLowerCase() !== 'employee name' && name.toLowerCase() !== 'name') {
+            const random = Math.floor(1000 + Math.random() * 9000);
+            const staffId = `FAC${year}${random}`;
+            
+            staffToInsert.push({
+              id: staffId,
+              name: name,
+              designation: designation,
+              status: 'Active',
+              role: 'STAFF'
+            });
+          }
+        }
+      }
+
+      if (staffToInsert.length === 0) {
+        alert('No valid staff data found. Ensure each line has at least a Name.');
+        setIsBulkSaving(false);
+        return;
+      }
+
+      const { error } = await supabase.from('staff').insert(staffToInsert);
+      if (error) throw error;
+
+      // Also create credentials for them
+      const credsToInsert = staffToInsert.map(s => ({
+        id: s.id,
+        password: '12345',
+        role: 'STAFF',
+        name: s.name
+      }));
+      await supabase.from('user_credentials').insert(credsToInsert);
+
+      alert(`Successfully uploaded ${staffToInsert.length} staff members!`);
+      setIsUploadModalOpen(false);
+      setBulkData('');
+      fetchFaculty();
+    } catch (error: any) {
+      console.error('Bulk upload error:', error);
+      alert('Failed bulk upload: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsBulkSaving(false);
+    }
+  };
+
   const handleEdit = async (staff: FacultyMember) => {
     // Fetch full data for editing
     const { data, error } = await supabase.from('staff').select('*').eq('id', staff.id).single();
@@ -495,6 +563,13 @@ export const Faculty: React.FC = () => {
           <p className="text-slate-500">Manage staff records and new faculty registrations.</p>
         </div>
         <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setIsUploadModalOpen(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-indigo-50 text-indigo-600 rounded-xl font-bold hover:bg-indigo-100 transition-all border border-indigo-100"
+          >
+            <Upload className="w-5 h-5" />
+            Bulk Upload
+          </button>
           {view === 'list' ? (
             <button 
               onClick={() => setView('register')}
@@ -1475,6 +1550,94 @@ export const Faculty: React.FC = () => {
               <p className="text-xs text-white/80">Faculty record has been created.</p>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Upload Modal */}
+      <AnimatePresence>
+        {isUploadModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsUploadModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden"
+            >
+              <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-indigo-50/30">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Bulk Staff Upload</h2>
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Import multiple records</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsUploadModalOpen(false)}
+                  className="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-xl transition-all font-bold text-2xl"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <div className="p-8 space-y-6">
+                <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="text-xs text-amber-700 leading-relaxed font-bold uppercase tracking-tight">
+                    Instructions: Paste data in "Name [TAB/Comma] Designation" format. 
+                    One staff member per line. Example: "Arun Maurya, Founder"
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Paste Content</label>
+                  <textarea 
+                    value={bulkData}
+                    onChange={(e) => setBulkData(e.target.value)}
+                    placeholder="Arun Maurya, Founder&#10;Dharmendra Maurya, College Head&#10;..."
+                    className="w-full h-64 p-6 bg-slate-50 border-none rounded-3xl text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-4 pt-4">
+                  <button 
+                    onClick={() => setIsUploadModalOpen(false)}
+                    className="px-6 py-3 text-slate-500 font-bold hover:text-primary transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleBulkUpload}
+                    disabled={isBulkSaving || !bulkData.trim()}
+                    className={cn(
+                      "px-8 py-3 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center gap-2",
+                      (isBulkSaving || !bulkData.trim()) && "opacity-50 cursor-not-allowed"
+                    )}
+                  >
+                    {isBulkSaving ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        Upload {bulkData.split('\n').filter(r => r.trim()).length} Members
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
