@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   Heart,
   Briefcase,
+  Share2,
   Edit2,
   Trash2,
   AlertTriangle,
@@ -92,6 +93,10 @@ export const Faculty: React.FC = () => {
     religions: ['Hinduism', 'Islam', 'Christianity', 'Sikhism', 'Buddhism', 'Jainism'],
     branches: ['Computer Science', 'Information Technology', 'Mechanical Engineering', 'Administration']
   });
+  const [settings, setSettings] = useState<any>({
+    collegeName: 'Sun Group of Institutions',
+    logo: ''
+  });
 
   const indianStates = [
     'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -106,12 +111,18 @@ export const Faculty: React.FC = () => {
   useEffect(() => {
     checkConnection();
     fetchAcademicSettings();
+    fetchGeneralSettings();
     fetchFaculty();
   }, []);
 
   const checkConnection = async () => {
     const result = await testSupabaseConnection();
     setDbStatus(result);
+  };
+
+  const fetchGeneralSettings = async () => {
+    const { data } = await supabase.from('app_settings').select('value').eq('key', 'general').single();
+    if (data?.value) setSettings(data.value);
   };
 
   const fetchAcademicSettings = async () => {
@@ -331,6 +342,17 @@ export const Faculty: React.FC = () => {
       setFormData(prev => ({ ...prev, loginId: staffId }));
     }
   }, [view, editingStaff]);
+
+  const shareOnWhatsApp = (phone: string, message: string) => {
+    if (!phone) {
+      alert('Phone number not available');
+      return;
+    }
+    const cleanPhone = phone.replace(/\D/g, '');
+    const whatsappPhone = (cleanPhone.length === 10 && !cleanPhone.startsWith('91')) ? '91' + cleanPhone : cleanPhone;
+    const url = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -747,7 +769,19 @@ export const Faculty: React.FC = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-indigo-900 uppercase tracking-widest">Login Password</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-indigo-900 uppercase tracking-widest">Login Password</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const msg = `Greetings from ${settings.collegeName}!\n\nYour Staff Login Credentials:\nID: ${formData.loginId}\nPassword: ${formData.loginPassword}\n\nLogin here: ${window.location.origin}`;
+                        shareOnWhatsApp(formData.phone, msg);
+                      }}
+                      className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                    >
+                      <Share2 className="w-3 h-3" /> WhatsApp
+                    </button>
+                  </div>
                   <div className="relative">
                     <AlertCircle className="w-4 h-4 text-indigo-400 absolute left-4 top-1/2 -translate-y-1/2" />
                     <input 

@@ -102,7 +102,8 @@ export const Students: React.FC = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [viewingStudent, setViewingStudent] = useState<Student | null>(null);
-  const [activeDetailsTab, setActiveDetailsTab] = useState<'profile' | 'documents' | 'academic' | 'fees'>('profile');
+  const [activeDetailsTab, setActiveDetailsTab] = useState<'profile' | 'credentials' | 'documents' | 'academic' | 'fees'>('profile');
+  const [viewingCredentials, setViewingCredentials] = useState<{student?: string, parent?: string} | null>(null);
   const [studentDocs, setStudentDocs] = useState<any[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const [newlySavedStudent, setNewlySavedStudent] = useState<Student | null>(null);
@@ -471,6 +472,18 @@ export const Students: React.FC = () => {
     }
   }, [view]);
 
+  const shareOnWhatsApp = (phone: string, message: string) => {
+    if (!phone) {
+      alert('Phone number not available');
+      return;
+    }
+    const cleanPhone = phone.replace(/\D/g, '');
+    // Default to Indian country code if not present and assuming 10 digits
+    const whatsappPhone = (cleanPhone.length === 10 && !cleanPhone.startsWith('91')) ? '91' + cleanPhone : cleanPhone;
+    const url = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -774,10 +787,22 @@ export const Students: React.FC = () => {
     setIsLoadingDocs(false);
   };
 
-  const handleOpenStudentView = (student: Student) => {
+  const handleOpenStudentView = async (student: Student) => {
     setViewingStudent(student);
     setActiveDetailsTab('profile');
     fetchStudentDocs(student.id);
+    
+    // Fetch credentials
+    try {
+      const { data: sCreds } = await supabase.from('user_credentials').select('password').eq('id', student.id).single();
+      const { data: pCreds } = await supabase.from('user_credentials').select('password').eq('id', `P-${student.id}`).single();
+      setViewingCredentials({
+        student: sCreds?.password,
+        parent: pCreds?.password
+      });
+    } catch (e) {
+      console.error('Error fetching viewing credentials:', e);
+    }
   };
 
   const handleSaveDocRecord = async (docData: any) => {
@@ -1504,7 +1529,19 @@ export const Students: React.FC = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-indigo-900 uppercase tracking-widest">Student Password</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-indigo-900 uppercase tracking-widest">Student Password</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const msg = `Greetings from ${settings.collegeName}!\n\nYour Student Login Credentials:\nID: ${formData.loginId}\nPassword: ${formData.loginPassword}\n\nLogin here: ${window.location.origin}`;
+                            shareOnWhatsApp(formData.phone, msg);
+                          }}
+                          className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                        >
+                          <Share2 className="w-3 h-3" /> WhatsApp
+                        </button>
+                      </div>
                       <div className="relative">
                         <AlertCircle className="w-4 h-4 text-indigo-400 absolute left-4 top-1/2 -translate-y-1/2" />
                         <input 
@@ -1543,7 +1580,19 @@ export const Students: React.FC = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-indigo-900 uppercase tracking-widest">Parent Password</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-indigo-900 uppercase tracking-widest">Parent Password</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const msg = `Greetings from ${settings.collegeName}!\n\nYour Parent Login Credentials for ${formData.firstName}'s account:\nID: ${formData.parentLoginId}\nPassword: ${formData.parentLoginPassword}\n\nLogin here: ${window.location.origin}`;
+                            shareOnWhatsApp(formData.parentPhone, msg);
+                          }}
+                          className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                        >
+                          <Share2 className="w-3 h-3" /> WhatsApp
+                        </button>
+                      </div>
                       <div className="relative">
                         <AlertCircle className="w-4 h-4 text-rose-300 absolute left-4 top-1/2 -translate-y-1/2" />
                         <input 
@@ -2367,17 +2416,20 @@ export const Students: React.FC = () => {
               <div className="grid grid-cols-2 gap-4 pt-4">
                 <button 
                   onClick={() => printAdmissionForm(newlySavedStudent)}
-                  className="flex items-center justify-center gap-2 px-6 py-4 bg-primary/10 text-primary rounded-2xl font-bold hover:bg-primary/20 transition-all"
+                  className="flex items-center justify-center gap-2 px-6 py-4 bg-primary/10 text-primary rounded-2xl font-bold hover:bg-primary/20 transition-all text-sm"
                 >
                   <Printer className="w-5 h-5" />
                   Print Form
                 </button>
                 <button 
-                  onClick={() => shareAdmissionConfirmation(newlySavedStudent)}
-                  className="flex items-center justify-center gap-2 px-6 py-4 bg-green-50 text-green-600 rounded-2xl font-bold hover:bg-green-100 transition-all"
+                  onClick={() => {
+                    const msg = `Greetings from ${settings.collegeName}!\n\nWELCOME ADMISSION CONFIRMED\n\nStudent: ${newlySavedStudent.name}\nID: ${newlySavedStudent.id}\n\nLogin Credentials:\nStudent ID: ${newlySavedStudent.id}\nPassword: ${(newlySavedStudent as any).loginPassword}\n\nLogin here: ${window.location.origin}`;
+                    shareOnWhatsApp(newlySavedStudent.phone, msg);
+                  }}
+                  className="flex items-center justify-center gap-2 px-6 py-4 bg-emerald-50 text-emerald-600 rounded-2xl font-bold hover:bg-emerald-100 transition-all text-sm border border-emerald-100"
                 >
                   <Share2 className="w-5 h-5" />
-                  Share PDF
+                  WhatsApp Creds
                 </button>
               </div>
 
@@ -2460,6 +2512,16 @@ export const Students: React.FC = () => {
                 >
                   General Profile
                   {activeDetailsTab === 'profile' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full" />}
+                </button>
+                <button 
+                  onClick={() => setActiveDetailsTab('credentials')}
+                  className={cn(
+                    "py-4 text-sm font-bold transition-all relative",
+                    activeDetailsTab === 'credentials' ? "text-primary" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  Credentials & Login
+                  {activeDetailsTab === 'credentials' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full" />}
                 </button>
                 <button 
                   onClick={() => setActiveDetailsTab('documents')}
@@ -2603,6 +2665,81 @@ export const Students: React.FC = () => {
                               <DetailRow label="Room No" value={viewingStudent.roomNumber || '-'} />
                             </>
                           )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : activeDetailsTab === 'credentials' ? (
+                  <div className="space-y-8">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-xl font-black text-slate-900 mb-1">Login Credentials</h3>
+                        <p className="text-sm text-slate-500 font-medium">Manage and share authentication details with student and parents.</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Student Login Card */}
+                      <div className="bg-primary/5 rounded-3xl p-8 border border-primary/10 space-y-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                              <GraduationCap className="w-5 h-5" />
+                            </div>
+                            <h4 className="text-lg font-bold text-primary">Student Account</h4>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              const msg = `Greetings from ${settings.collegeName}!\n\nYour Student Login Credentials:\nID: ${viewingStudent.id}\nPassword: ${viewingCredentials?.student || '********'}\n\nLogin here: ${window.location.origin}`;
+                              shareOnWhatsApp(viewingStudent.phone, msg);
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all"
+                          >
+                            <Share2 className="w-4 h-4" /> Share on WhatsApp
+                          </button>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="bg-white p-4 rounded-2xl border border-primary/5">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Username / ID</p>
+                            <p className="font-mono font-bold text-primary">{viewingStudent.id}</p>
+                          </div>
+                          <div className="bg-white p-4 rounded-2xl border border-primary/5">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Password</p>
+                            <p className="font-mono font-bold text-slate-800">{viewingCredentials?.student || 'Not found'}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Parent Login Card */}
+                      <div className="bg-rose-50 rounded-3xl p-8 border border-rose-100 space-y-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-rose-100 rounded-xl flex items-center justify-center text-rose-500">
+                              <Heart className="w-5 h-5" />
+                            </div>
+                            <h4 className="text-lg font-bold text-rose-700">Parent Account</h4>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              const msg = `Greetings from ${settings.collegeName}!\n\nYour Parent Login Credentials for ${viewingStudent.name}'s account:\nID: P-${viewingStudent.id}\nPassword: ${viewingCredentials?.parent || '********'}\n\nLogin here: ${window.location.origin}`;
+                              shareOnWhatsApp(viewingStudent.parentPhone, msg);
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all"
+                          >
+                            <Share2 className="w-4 h-4" /> Share on WhatsApp
+                          </button>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="bg-white p-4 rounded-2xl border border-rose-100">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Username / ID</p>
+                            <p className="font-mono font-bold text-rose-600">P-{viewingStudent.id}</p>
+                          </div>
+                          <div className="bg-white p-4 rounded-2xl border border-rose-100">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Password</p>
+                            <p className="font-mono font-bold text-slate-800">{viewingCredentials?.parent || 'Not found'}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
