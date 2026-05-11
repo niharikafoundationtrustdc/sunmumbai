@@ -478,10 +478,17 @@ export const Students: React.FC = () => {
       return;
     }
     const cleanPhone = phone.replace(/\D/g, '');
-    // Default to Indian country code if not present and assuming 10 digits
     const whatsappPhone = (cleanPhone.length === 10 && !cleanPhone.startsWith('91')) ? '91' + cleanPhone : cleanPhone;
-    const url = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+    const url = `https://api.whatsapp.com/send?phone=${whatsappPhone}&text=${encodeURIComponent(message)}`;
+    
+    // Using anchor tag for better reliability in some browsers/iframes
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {

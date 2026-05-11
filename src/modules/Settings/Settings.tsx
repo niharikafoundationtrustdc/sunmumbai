@@ -17,7 +17,8 @@ import {
   Trash2,
   Check,
   X,
-  Smartphone
+  Smartphone,
+  Share2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, safeLocalStorageSet } from '../../lib/utils';
@@ -198,16 +199,48 @@ export const Settings: React.FC = () => {
     }
 
     // Fetch credentials from user_credentials table
-    const { data: creds, error: credError } = await supabase
-      .from('user_credentials')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const [credsRes, studentsRes, facultyRes] = await Promise.all([
+      supabase.from('user_credentials').select('*').order('created_at', { ascending: false }),
+      supabase.from('students').select('id, phone, parentPhone'),
+      supabase.from('faculty').select('id, phone')
+    ]);
     
-    if (credError) {
-      console.error('Error fetching credentials:', credError);
-    } else if (creds) {
-      setPanelCredentials(creds);
+    if (credsRes.error) {
+      console.error('Error fetching credentials:', credsRes.error);
+    } else if (credsRes.data) {
+      const phoneMap: Record<string, string> = {};
+      studentsRes.data?.forEach(s => {
+        phoneMap[s.id] = s.phone;
+        phoneMap[`P-${s.id}`] = s.parentPhone;
+      });
+      facultyRes.data?.forEach(f => {
+        phoneMap[f.id] = f.phone;
+      });
+
+      const enrichedCreds = credsRes.data.map(c => ({
+        ...c,
+        phone: phoneMap[c.id] || ''
+      }));
+      setPanelCredentials(enrichedCreds);
     }
+  };
+
+  const shareOnWhatsApp = (phone: string, message: string) => {
+    if (!phone) {
+      alert('Phone number not available. Please ensure the student/staff profile has a phone number.');
+      return;
+    }
+    const cleanPhone = phone.replace(/\D/g, '');
+    const whatsappPhone = (cleanPhone.length === 10 && !cleanPhone.startsWith('91')) ? '91' + cleanPhone : cleanPhone;
+    const url = `https://api.whatsapp.com/send?phone=${whatsappPhone}&text=${encodeURIComponent(message)}`;
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const saveToSupabase = async (key: string, value: any) => {
@@ -776,6 +809,7 @@ export const Settings: React.FC = () => {
                     <th className="px-8 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Login ID</th>
                     <th className="px-8 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Password</th>
                     <th className="px-8 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Email</th>
+                    <th className="px-8 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Contact</th>
                     <th className="px-8 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
@@ -805,12 +839,42 @@ export const Settings: React.FC = () => {
                           <button 
                             onClick={() => togglePasswordVisibility(panel.id)}
                             className="p-1 text-slate-400 hover:text-primary opacity-0 group-hover:opacity-100 transition-all"
+                            title="Toggle Password Visibility"
                           >
                             <Shield className="w-3 h-3" />
                           </button>
+                          {panel.phone && (
+                            <button 
+                              onClick={() => {
+                                const msg = `Greetings from ${generalSettings.collegeName}!\n\nYour Login Credentials:\nID: ${panel.id}\nPassword: ${panel.password}\n\nLogin here: ${window.location.origin}`;
+                                shareOnWhatsApp(panel.phone, msg);
+                              }}
+                              className="p-1 text-emerald-500 hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-all"
+                              title="Share on WhatsApp"
+                            >
+                              <Share2 className="w-3 h-3" />
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td className="px-8 py-4 text-sm text-slate-500 italic">{panel.email || 'No email set'}</td>
+                      <td className="px-8 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-500">{panel.phone || 'No phone'}</span>
+                          {panel.phone && (
+                            <button 
+                              onClick={() => {
+                                const msg = `Greetings from ${generalSettings.collegeName}!\n\nYour Login Credentials:\nID: ${panel.id}\nPassword: ${panel.password}\n\nLogin here: ${window.location.origin}`;
+                                shareOnWhatsApp(panel.phone, msg);
+                              }}
+                              className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all shadow-sm"
+                              title="Share on WhatsApp"
+                            >
+                              <Share2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-8 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button 
