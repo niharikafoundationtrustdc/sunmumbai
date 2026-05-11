@@ -35,6 +35,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import { NotificationType } from '../../lib/notifications';
 import { NoticeTicker } from '../NoticeTicker';
+import { InstallApp } from '../InstallApp/InstallApp';
 
 interface Notification {
   id: string;
@@ -432,6 +433,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           </>
         )}
       </AnimatePresence>
+      <InstallApp />
     </div>
   );
 };

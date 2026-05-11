@@ -800,7 +800,7 @@ export const FacultyPanel: React.FC = () => {
                   className="w-full px-4 py-3 bg-background border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                 >
                   <option value="">Choose Course</option>
-                  {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {courses.map((c, i) => <option key={c.id || `course-${i}`} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
@@ -893,8 +893,8 @@ export const FacultyPanel: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {students.map((student) => (
-                        <tr key={student.id} className="hover:bg-primary/5 transition-colors">
+                      {students.map((student, i) => (
+                        <tr key={student.id || `student-${i}`} className="hover:bg-primary/5 transition-colors">
                           <td className="px-8 py-5 text-sm font-mono font-bold text-slate-600">{student.roll_no}</td>
                           <td className="px-8 py-5 text-sm font-black text-slate-800">{student.name}</td>
                           <td className="px-8 py-5">

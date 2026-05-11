@@ -16,7 +16,8 @@ import {
   Edit2,
   Trash2,
   Check,
-  X
+  X,
+  Smartphone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, safeLocalStorageSet } from '../../lib/utils';
@@ -42,7 +43,8 @@ export const Settings: React.FC = () => {
       email: 'admin@sungroupofinstitution.com',
       phone: '+91 22 1234 5678',
       logo: '',
-      signature: ''
+      signature: '',
+      apkLink: ''
     };
   });
 
@@ -590,6 +592,20 @@ export const Settings: React.FC = () => {
                       className="w-full pl-11 pr-4 py-3 bg-background border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                     />
                   </div>
+                </div>
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Android APK Download Link</label>
+                  <div className="relative">
+                    <Smartphone className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                    <input 
+                      type="url" 
+                      value={generalSettings.apkLink}
+                      onChange={(e) => setGeneralSettings({...generalSettings, apkLink: e.target.value})}
+                      placeholder="Enter the URL to your .apk file"
+                      className="w-full pl-11 pr-4 py-3 bg-background border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-medium">Link to your compiled Android Application file (Optional)</p>
                 </div>
               </div>
             </div>

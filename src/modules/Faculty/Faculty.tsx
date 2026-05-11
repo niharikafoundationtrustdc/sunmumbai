@@ -845,8 +845,8 @@ export const Faculty: React.FC = () => {
                     className="w-full px-4 py-3 bg-background border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                   >
                     <option value="">Select Branch</option>
-                    {(academicSettings.branches || []).map((b: string) => (
-                      <option key={b} value={b}>{b}</option>
+                    {(academicSettings.branches || []).map((b: string, i: number) => (
+                      <option key={b || `branch-${i}`} value={b}>{b}</option>
                     ))}
                   </select>
                 </div>
@@ -936,8 +936,8 @@ export const Faculty: React.FC = () => {
                     className="w-full px-4 py-3 bg-background border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                   >
                     <option value="">Select Religion</option>
-                    {(academicSettings.religions || []).map((r: string) => (
-                      <option key={r} value={r}>{r}</option>
+                    {(academicSettings.religions || []).map((r: string, i: number) => (
+                      <option key={r || `religion-${i}`} value={r}>{r}</option>
                     ))}
                   </select>
                 </div>
@@ -950,8 +950,8 @@ export const Faculty: React.FC = () => {
                     className="w-full px-4 py-3 bg-background border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                   >
                     <option value="">Select Caste</option>
-                    {(academicSettings.castes || []).map((c: string) => (
-                      <option key={c} value={c}>{c}</option>
+                    {(academicSettings.castes || []).map((c: string, i: number) => (
+                      <option key={c || `caste-${i}`} value={c}>{c}</option>
                     ))}
                   </select>
                 </div>

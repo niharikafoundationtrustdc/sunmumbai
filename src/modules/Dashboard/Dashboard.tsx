@@ -20,7 +20,8 @@ import {
   UserCheck,
   Bell,
   ChevronRight,
-  X
+  X,
+  Smartphone
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, Navigate } from 'react-router-dom';
@@ -60,6 +61,7 @@ export const Dashboard: React.FC = () => {
   const [todayStudyActivities, setTodayStudyActivities] = useState<any[]>([]);
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; message: string; details?: string } | null>(null);
   const [collegeName, setCollegeName] = useState('EduNexus');
+  const [apkLink, setApkLink] = useState('');
 
   const [showTroubleshooting, setShowTroubleshooting] = useState(false);
 
@@ -77,6 +79,9 @@ export const Dashboard: React.FC = () => {
     const { data } = await supabase.from('app_settings').select('value').eq('key', 'general').single();
     if (data?.value?.collegeName) {
       setCollegeName(data.value.collegeName);
+    }
+    if (data?.value?.apkLink) {
+      setApkLink(data.value.apkLink);
     }
   };
 
@@ -397,6 +402,18 @@ export const Dashboard: React.FC = () => {
               color="bg-indigo-600" 
               onClick={() => navigate('/attendance')} 
             />
+            <QuickActionCard 
+              title="Install Mobile" 
+              icon={Smartphone} 
+              color="bg-slate-900" 
+              onClick={() => {
+                if (apkLink) {
+                  window.open(apkLink, '_blank');
+                } else {
+                  alert('PWA Installation: To install this software on your mobile, open this website in Chrome on Android (select "Install App") or Safari on iOS (select "Add to Home Screen").');
+                }
+              }} 
+            />
           </>
         )}
         {isParent && (
@@ -420,10 +437,16 @@ export const Dashboard: React.FC = () => {
               onClick={() => navigate('/attendance')} 
             />
             <QuickActionCard 
-              title="View Results" 
-              icon={Award} 
-              color="bg-exams" 
-              onClick={() => navigate('/exams')} 
+              title="Install Mobile" 
+              icon={Smartphone} 
+              color="bg-slate-900" 
+              onClick={() => {
+                if (apkLink) {
+                  window.open(apkLink, '_blank');
+                } else {
+                  alert('PWA Installation: To install this software on your mobile, open this website in Chrome on Android (select "Install App") or Safari on iOS (select "Add to Home Screen").');
+                }
+              }} 
             />
           </>
         )}
@@ -448,10 +471,16 @@ export const Dashboard: React.FC = () => {
               onClick={() => navigate('/attendance')} 
             />
             <QuickActionCard 
-              title="Examinations" 
-              icon={FileText} 
-              color="bg-amber-600" 
-              onClick={() => navigate('/exams')} 
+              title="Install Mobile" 
+              icon={Smartphone} 
+              color="bg-slate-900" 
+              onClick={() => {
+                if (apkLink) {
+                  window.open(apkLink, '_blank');
+                } else {
+                  alert('PWA Installation: To install this software on your mobile, open this website in Chrome on Android (select "Install App") or Safari on iOS (select "Add to Home Screen").');
+                }
+              }} 
             />
           </>
         )}

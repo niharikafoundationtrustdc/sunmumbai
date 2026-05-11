@@ -1274,7 +1274,7 @@ export const Students: React.FC = () => {
                             className="w-full px-3 py-2 bg-slate-50 border-none rounded-lg text-xs font-bold outline-none ring-1 ring-slate-200 focus:ring-primary/20"
                           >
                             <option value="">All Branches</option>
-                            {(academicSettings?.branches || []).map((b: string) => <option key={b} value={b}>{b}</option>)}
+                            {(academicSettings?.branches || []).map((b: string, i: number) => <option key={b || `branch-${i}`} value={b}>{b}</option>)}
                           </select>
                         </div>
 
@@ -1286,7 +1286,7 @@ export const Students: React.FC = () => {
                             className="w-full px-3 py-2 bg-slate-50 border-none rounded-lg text-xs font-bold outline-none ring-1 ring-slate-200 focus:ring-primary/20"
                           >
                             <option value="">All Batches</option>
-                            {(academicSettings?.batches || []).map((b: string) => <option key={b} value={b}>{b}</option>)}
+                            {(academicSettings?.batches || []).map((b: string, i: number) => <option key={b || `batch-${i}`} value={b}>{b}</option>)}
                           </select>
                         </div>
 
@@ -1653,8 +1653,8 @@ export const Students: React.FC = () => {
                     className="w-full px-4 py-3 bg-background border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                   >
                     <option value="">Select Session</option>
-                    {(academicSettings?.sessions || []).map((s: string) => (
-                      <option key={s} value={s}>{s}</option>
+                    {(academicSettings?.sessions || []).map((s: string, i: number) => (
+                      <option key={s || `session-${i}`} value={s}>{s}</option>
                     ))}
                   </select>
                 </div>
@@ -1668,8 +1668,8 @@ export const Students: React.FC = () => {
                     className="w-full px-4 py-3 bg-background border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                   >
                     <option value="">Select Course</option>
-                    {(courses || []).map((c: any) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                    {(courses || []).map((c: any, i: number) => (
+                      <option key={c.id || `course-${i}`} value={c.id}>{c.name}</option>
                     ))}
                   </select>
                 </div>
@@ -1683,8 +1683,8 @@ export const Students: React.FC = () => {
                     className="w-full px-4 py-3 bg-background border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                   >
                     <option value="">Select Branch</option>
-                    {(academicSettings?.branches || []).map((b: string) => (
-                      <option key={b} value={b}>{b}</option>
+                    {(academicSettings?.branches || []).map((b: string, i: number) => (
+                      <option key={b || `branch-${i}`} value={b}>{b}</option>
                     ))}
                   </select>
                 </div>
@@ -1698,8 +1698,8 @@ export const Students: React.FC = () => {
                     className="w-full px-4 py-3 bg-background border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                   >
                     <option value="">Select Batch</option>
-                    {(academicSettings?.batches || []).map((b: string) => (
-                      <option key={b} value={b}>{b}</option>
+                    {(academicSettings?.batches || []).map((b: string, i: number) => (
+                      <option key={b || `batch-${i}`} value={b}>{b}</option>
                     ))}
                   </select>
                 </div>

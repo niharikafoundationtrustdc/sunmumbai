@@ -52,6 +52,13 @@ export const Fees: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [studentSearchInput, setStudentSearchInput] = useState('');
   const [matchingStudents, setMatchingStudents] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [academicSettings, setAcademicSettings] = useState<any>(null);
+  const [generalSettings, setGeneralSettings] = useState<any>(null);
+  
+  const [filterCourse, setFilterCourse] = useState('');
+  const [filterBatch, setFilterBatch] = useState('');
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [currentReceipt, setCurrentReceipt] = useState<FeeTransaction | null>(null);
@@ -70,7 +77,19 @@ export const Fees: React.FC = () => {
   useEffect(() => {
     fetchTransactions();
     fetchStudents();
+    fetchSettingsData();
   }, []);
+
+  const fetchSettingsData = async () => {
+    const { data: cData } = await supabase.from('courses').select('id, name');
+    if (cData) setCourses(cData);
+
+    const { data: sData } = await supabase.from('app_settings').select('*').eq('key', 'academic').single();
+    if (sData) setAcademicSettings(sData.value);
+
+    const { data: gData } = await supabase.from('app_settings').select('*').eq('key', 'general').single();
+    if (gData) setGeneralSettings(gData.value);
+  };
 
   const fetchTransactions = async () => {
     const { data } = await supabase
@@ -107,7 +126,13 @@ export const Fees: React.FC = () => {
       
       const receiptNo = `R-${Date.now()}`;
       const { error } = await supabase.from('fee_transactions').insert([{
-        ...formData,
+        category: formData.category,
+        amount: formData.amount,
+        payment_date: formData.payment_date,
+        payment_method: formData.payment_method,
+        transaction_id: formData.transaction_id,
+        remarks: formData.remarks,
+        status: formData.status,
         student_id: selectedStudent.id,
         receipt_no: receiptNo
       }]);
@@ -118,6 +143,8 @@ export const Fees: React.FC = () => {
       setStudentSearchInput('');
       setMatchingStudents([]);
       setSelectedStudent(null);
+      setFilterCourse('');
+      setFilterBatch('');
       fetchTransactions();
       alert('Fee collected successfully!');
     } catch (error: any) {
@@ -138,26 +165,30 @@ export const Fees: React.FC = () => {
   );
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 md:space-y-8 pb-10 md:pb-0">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-black text-primary tracking-tight">Fee Management</h1>
-          <p className="text-slate-500 font-medium">Record payments and generate fee receipts.</p>
+          <h1 className="text-2xl md:text-3xl font-black text-primary tracking-tight">Fee Management</h1>
+          <p className="text-slate-500 font-medium text-sm md:text-base">Record payments and generate fee receipts.</p>
         </div>
         <button 
           onClick={() => {
             setSelectedStudent(null);
+            setStudentSearchInput('');
+            setMatchingStudents([]);
+            setFilterCourse('');
+            setFilterBatch('');
             setIsModalOpen(true);
           }}
-          className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-all shadow-xl shadow-primary/20"
+          className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-4 md:py-3 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-all shadow-xl shadow-primary/20 active:scale-[0.98]"
         >
           <Plus className="w-5 h-5" />
           Collect New Fee
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-primary/10 shadow-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="bg-white p-6 rounded-3xl border border-primary/10 shadow-sm transition-transform hover:scale-[1.02]">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
               <DollarSign className="w-6 h-6" />
@@ -192,20 +223,20 @@ export const Fees: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm flex flex-col md:flex-row items-center gap-4">
+      <div className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm flex flex-col md:flex-row items-stretch md:items-center gap-4">
         <div className="relative flex-1">
           <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
           <input 
             type="text" 
-            placeholder="Search by student name, roll no or receipt no..." 
-            className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+            placeholder="Search transactions..." 
+            className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-slate-400 font-bold"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="flex gap-2">
-           <button className="flex items-center gap-2 px-4 py-3 bg-slate-50 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-100"><Filter className="w-4 h-4"/> Filters</button>
-           <button className="flex items-center gap-2 px-4 py-3 bg-slate-50 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-100"><Download className="w-4 h-4"/> Export</button>
+        <div className="flex gap-2 w-full md:w-auto">
+           <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-50 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200"><Filter className="w-4 h-4"/> Filter</button>
+           <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-50 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200"><Download className="w-4 h-4"/> Export</button>
         </div>
       </div>
 
@@ -223,8 +254,8 @@ export const Fees: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredTransactions.map(t => (
-                <tr key={t.id} className="hover:bg-primary/5 transition-colors group">
+              {filteredTransactions.map((t, i) => (
+                <tr key={t.id || `tx-${i}`} className="hover:bg-primary/5 transition-colors group">
                   <td className="px-6 py-4 font-bold text-primary font-mono text-[11px]">{t.receipt_no}</td>
                   <td className="px-6 py-4">
                     <div className="font-bold text-slate-800">{t.student_name}</div>
@@ -253,71 +284,136 @@ export const Fees: React.FC = () => {
 
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 bg-primary/20 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-[32px] shadow-2xl w-full max-w-xl overflow-hidden">
-               <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-primary/5">
-                <h2 className="text-2xl font-black text-primary">Collect Fee</h2>
-                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-white rounded-xl"><X className="w-6 h-6 text-slate-400"/></button>
+          <div className="fixed inset-0 bg-primary/20 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl overflow-hidden border border-white"
+            >
+               <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between bg-primary/5">
+                <div>
+                  <h2 className="text-xl md:text-2xl font-black text-primary">Collect Fee</h2>
+                  <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Record new payment</p>
+                </div>
+                <button onClick={() => setIsModalOpen(false)} className="p-3 hover:bg-white rounded-2xl transition-colors shadow-sm"><X className="w-6 h-6 text-slate-400"/></button>
                </div>
-               <div className="p-8 space-y-4 max-h-[70vh] overflow-y-auto">
-                 <div className="space-y-2">
-                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Search Student (Roll No/Name)</label>
-                   <div className="relative">
-                     <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                     <input 
-                       type="text" 
-                       placeholder="e.g. RJ001"
-                       className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                       value={studentSearchInput}
-                       onChange={(e) => {
-                         const val = e.target.value;
-                         setStudentSearchInput(val);
-                         if (val.length > 2) {
-                           const matches = students.filter(st => 
-                             st.roll_no?.toLowerCase().includes(val.toLowerCase()) || 
-                             st.name.toLowerCase().includes(val.toLowerCase())
-                           );
-                           setMatchingStudents(matches.slice(0, 5));
-                         } else {
-                           setMatchingStudents([]);
-                         }
-                       }}
-                     />
-                     
-                     {matchingStudents.length > 0 && !selectedStudent && (
-                       <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 z-[60] overflow-hidden animate-in fade-in slide-in-from-top-2">
-                         {matchingStudents.map((s) => (
-                           <button
-                             key={s.id}
-                             onClick={() => {
-                               setSelectedStudent(s);
-                               setMatchingStudents([]);
-                               setStudentSearchInput(s.name);
-                             }}
-                             className="w-full p-4 text-left hover:bg-primary/5 border-b border-slate-50 last:border-0 transition-colors"
-                           >
-                             <div className="font-bold text-slate-800">{s.name}</div>
-                             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{s.roll_no} • {s.branch}</div>
-                           </button>
-                         ))}
-                       </div>
-                     )}
+               
+               <div className="p-6 md:p-8 space-y-6 max-h-[85vh] md:max-h-[70vh] overflow-y-auto custom-scrollbar">
+                 <div className="space-y-4">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filter by Course</label>
+                        <select 
+                          className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none"
+                          value={filterCourse}
+                          onChange={(e) => setFilterCourse(e.target.value)}
+                        >
+                          <option value="">All Courses</option>
+                          {courses.map((c, i) => <option key={c.id || `course-${i}`} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filter by Batch</label>
+                        <select 
+                          className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none"
+                          value={filterBatch}
+                          onChange={(e) => setFilterBatch(e.target.value)}
+                        >
+                          <option value="">All Batches</option>
+                          {academicSettings?.batches?.map((b: string, i: number) => <option key={b || `batch-${i}`} value={b}>{b}</option>)}
+                        </select>
+                      </div>
                    </div>
-                   {selectedStudent && (
-                     <div className="p-4 bg-primary/5 rounded-2xl flex items-center justify-between animate-in zoom-in-95">
-                       <div>
-                         <p className="text-sm font-black text-primary">{selectedStudent.name}</p>
-                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">{selectedStudent.roll_no} • {selectedStudent.branch}</p>
-                       </div>
-                       <button onClick={() => setSelectedStudent(null)} className="text-rose-500"><X className="w-4 h-4"/></button>
-                     </div>
-                   )}
+
+                   <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Search Student (Name / Roll No)</label>
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                      <input 
+                        type="text" 
+                        placeholder="Search student..."
+                        className="w-full pl-11 pr-4 py-4 bg-slate-50 border-none rounded-[20px] text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-slate-300"
+                        value={studentSearchInput}
+                        onChange={async (e) => {
+                          const val = e.target.value;
+                          setStudentSearchInput(val);
+                          
+                          if (val.length > 1) {
+                            let query = supabase.from('students').select('id, name, roll_no, branch, batch, course_id');
+                            
+                            if (filterCourse) query = query.eq('course_id', filterCourse);
+                            if (filterBatch) query = query.eq('batch', filterBatch);
+                            
+                            query = query.or(`name.ilike.%${val}%,roll_no.ilike.%${val}%`).limit(10);
+                            
+                            const { data } = await query;
+                            if (data) setMatchingStudents(data);
+                          } else {
+                            setMatchingStudents([]);
+                          }
+                        }}
+                      />
+                      
+                      {matchingStudents.length > 0 && !selectedStudent && (
+                        <div className="absolute top-full left-0 right-0 mt-3 bg-white rounded-[24px] shadow-2xl border border-slate-100 z-[110] overflow-hidden animate-in fade-in slide-in-from-top-2 max-h-64 overflow-y-auto custom-scrollbar">
+                          <div className="p-3 bg-slate-50/50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest px-6">Found {matchingStudents.length} Students</div>
+                          {matchingStudents.map((s, i) => (
+                            <button
+                              key={s.id || `student-${i}`}
+                              onClick={() => {
+                                setSelectedStudent(s);
+                                setMatchingStudents([]);
+                                setStudentSearchInput(s.name);
+                              }}
+                              className="w-full p-4 md:p-5 text-left hover:bg-primary/5 border-b border-slate-50 last:border-0 transition-colors flex flex-col gap-1 px-6 active:bg-primary/10"
+                            >
+                              <div className="font-bold text-slate-800 text-sm">{s.name}</div>
+                              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tight flex items-center gap-2">
+                                <span className="bg-slate-100 px-1.5 py-0.5 rounded">{s.roll_no}</span>
+                                <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                <span>{s.branch}</span>
+                                {s.batch && <>
+                                  <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                  <span>{s.batch}</span>
+                                </>}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                   </div>
+
+                    {selectedStudent && (
+                      <div className="p-5 bg-primary/5 rounded-[24px] flex items-center justify-between animate-in zoom-in-95 border border-primary/10">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm">
+                            <User className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-primary">{selectedStudent.name}</p>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">{selectedStudent.roll_no} • {selectedStudent.branch}</p>
+                          </div>
+                        </div>
+                        <button onClick={() => {
+                          setSelectedStudent(null);
+                          setStudentSearchInput('');
+                        }} className="p-2 bg-white text-rose-500 rounded-xl shadow-sm hover:bg-rose-50 transition-colors">
+                          <X className="w-5 h-5"/>
+                        </button>
+                      </div>
+                    )}
                  </div>
 
-                 <div className="grid grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fee Category</label>
-                    <select className="w-full px-4 py-3 bg-slate-50 rounded-xl" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})}>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fee Category</label>
+                    <select 
+                      className="w-full px-4 py-4 bg-slate-50 border-none rounded-[20px] text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none" 
+                      value={formData.category} 
+                      onChange={(e) => setFormData({...formData, category: e.target.value})}
+                    >
                       <option>Tuition Fee</option>
                       <option>Exam Fee</option>
                       <option>Admission Fee</option>
@@ -328,15 +424,25 @@ export const Fees: React.FC = () => {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Amount Paid (₹)</label>
-                    <input type="number" className="w-full px-4 py-3 bg-slate-50 rounded-xl" value={formData.amount} onChange={(e) => setFormData({...formData, amount: Number(e.target.value)})} />
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount Paid (₹)</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-4 py-4 bg-slate-50 border-none rounded-[20px] text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all" 
+                      value={formData.amount || ''} 
+                      placeholder="Enter amount"
+                      onChange={(e) => setFormData({...formData, amount: Number(e.target.value)})} 
+                    />
                   </div>
                  </div>
 
-                 <div className="grid grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Payment Method</label>
-                    <select className="w-full px-4 py-3 bg-slate-50 rounded-xl" value={formData.payment_method} onChange={(e) => setFormData({...formData, payment_method: e.target.value})}>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payment Method</label>
+                    <select 
+                      className="w-full px-4 py-4 bg-slate-50 border-none rounded-[20px] text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none" 
+                      value={formData.payment_method} 
+                      onChange={(e) => setFormData({...formData, payment_method: e.target.value})}
+                    >
                       <option>Cash</option>
                       <option>Bank Transfer</option>
                       <option>UPI</option>
@@ -345,24 +451,41 @@ export const Fees: React.FC = () => {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Payment Date</label>
-                    <input type="date" className="w-full px-4 py-3 bg-slate-50 rounded-xl" value={formData.payment_date} onChange={(e) => setFormData({...formData, payment_date: e.target.value})} />
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payment Date</label>
+                    <input 
+                      type="date" 
+                      className="w-full px-4 py-4 bg-slate-50 border-none rounded-[20px] text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all" 
+                      value={formData.payment_date} 
+                      onChange={(e) => setFormData({...formData, payment_date: e.target.value})} 
+                    />
                   </div>
                  </div>
 
                  <div className="space-y-2">
-                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Transaction ID / Ref</label>
-                   <input type="text" placeholder="e.g. UPI-123456" className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-bold" value={formData.transaction_id} onChange={(e) => setFormData({...formData, transaction_id: e.target.value})} />
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transaction ID / Reference</label>
+                   <input 
+                    type="text" 
+                    placeholder="e.g. UPI-123456" 
+                    className="w-full px-4 py-4 bg-slate-50 border-none rounded-[20px] text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-slate-300" 
+                    value={formData.transaction_id} 
+                    onChange={(e) => setFormData({...formData, transaction_id: e.target.value})} 
+                   />
                  </div>
                  <div className="space-y-2">
-                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Remarks</label>
-                   <textarea rows={2} className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm resize-none" value={formData.remarks} onChange={(e) => setFormData({...formData, remarks: e.target.value})} />
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Remarks</label>
+                   <textarea 
+                    rows={2} 
+                    placeholder="Optional notes..."
+                    className="w-full px-6 py-4 bg-slate-50 border-none rounded-[24px] text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-slate-300 resize-none" 
+                    value={formData.remarks} 
+                    onChange={(e) => setFormData({...formData, remarks: e.target.value})} 
+                   />
                  </div>
                </div>
-               <div className="p-8 bg-slate-50 flex justify-end gap-3">
-                <button onClick={() => setIsModalOpen(false)} className="px-6 py-3 font-bold text-slate-500 hover:text-primary">Cancel</button>
-                <button onClick={handleSave} className="px-10 py-3 bg-primary text-white rounded-2xl font-black shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center gap-2">
-                  <Save className="w-4 h-4"/> Save & Generate Receipt
+               <div className="p-6 md:p-8 bg-slate-50 flex flex-col md:flex-row justify-end gap-3 md:gap-4 border-t border-slate-100">
+                <button onClick={() => setIsModalOpen(false)} className="order-2 md:order-1 px-8 py-4 md:py-3 font-bold text-slate-400 hover:text-primary transition-colors">Discard</button>
+                <button onClick={handleSave} className="order-1 md:order-2 px-10 py-5 md:py-3 bg-primary text-white rounded-[20px] md:rounded-2xl font-black shadow-xl shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center gap-2 active:scale-95 group">
+                  <CheckCircle2 className="w-5 h-5 group-hover:scale-110 transition-transform"/> Save & Print Receipt
                 </button>
                </div>
             </motion.div>
@@ -375,9 +498,15 @@ export const Fees: React.FC = () => {
               <div className="p-8 space-y-8" id="fee-receipt">
                 <div className="flex justify-between items-start border-b-2 border-slate-100 pb-8">
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-white text-3xl font-black">S</div>
+                    {generalSettings?.logo ? (
+                      <img src={generalSettings.logo} alt="Logo" className="w-16 h-16 object-contain rounded-2xl" />
+                    ) : (
+                      <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-white text-3xl font-black">
+                        {generalSettings?.collegeName ? generalSettings.collegeName.charAt(0) : 'S'}
+                      </div>
+                    )}
                     <div>
-                      <h2 className="text-xl font-black text-slate-900">EduNexus Academy</h2>
+                      <h2 className="text-xl font-black text-slate-900">{generalSettings?.collegeName || 'EduNexus Academy'}</h2>
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Fee Payment Receipt</p>
                     </div>
                   </div>

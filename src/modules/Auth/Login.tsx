@@ -6,6 +6,7 @@ import {
   Lock, 
   Eye, 
   EyeOff,
+  Smartphone,
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -21,7 +22,7 @@ export const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [settings, setSettings] = useState({ collegeName: 'College Management System', logo: '' });
+  const [settings, setSettings] = useState({ collegeName: 'College Management System', logo: '', apkLink: '' });
   const [authRole, setAuthRole] = useState<'ADMIN' | 'STUDENT' | 'PARENT' | 'STAFF' | 'ACCOUNTANT'>('ADMIN');
 
   useEffect(() => {
@@ -188,6 +189,26 @@ export const Login: React.FC = () => {
               "Sign In"
             )}
           </button>
+
+          {settings.apkLink && (
+            <button
+              type="button"
+              onClick={() => window.open(settings.apkLink, '_blank')}
+              className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-lg shadow-slate-200 hover:bg-slate-800 transition-all flex items-center justify-center gap-3 mt-4 group"
+            >
+              <div className="w-7 h-7 bg-white/10 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                {settings.logo ? (
+                  <img src={settings.logo} alt="Logo" className="w-5 h-5 object-contain" />
+                ) : (
+                  <Smartphone className="w-4 h-4 text-white" />
+                )}
+              </div>
+              <div className="text-left">
+                <div className="leading-tight">Install Mobile App</div>
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Download APK Version</div>
+              </div>
+            </button>
+          )}
         </form>
 
         <div className="mt-6 md:mt-8 pt-6 border-t border-slate-100 text-center">

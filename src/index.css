@@ -42,3 +42,26 @@
   scrollbar-width: thin;
   scrollbar-color: var(--color-primary) transparent;
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  .fixed, .absolute {
+    position: static !important;
+  }
+
+  /* Specific fix for printing only the receipt if needed */
+  #fee-receipt {
+    display: block !important;
+    position: static !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+}
