@@ -94,11 +94,18 @@ export const Dashboard: React.FC = () => {
     setIsLoading(true);
     try {
       // 1. Fetch Stats
-      const { count: studentCount } = await supabase.from('students').select('*', { count: 'exact', head: true });
-      const { count: facultyCount } = await supabase.from('staff').select('*', { count: 'exact', head: true });
-      const { count: applicationCount } = await supabase.from('applications').select('*', { count: 'exact', head: true });
+      const [
+        { count: studentCount },
+        { count: facultyCount },
+        { count: applicationCount },
+        { data: feesData }
+      ] = await Promise.all([
+        supabase.from('students').select('id', { count: 'exact', head: true }),
+        supabase.from('staff').select('id', { count: 'exact', head: true }),
+        supabase.from('applications').select('id', { count: 'exact', head: true }),
+        supabase.from('fees').select('amount, status, description').limit(1000) // Safety limit
+      ]);
       
-      const { data: feesData } = await supabase.from('fees').select('amount, status, description');
       const totalCollected = (feesData || [])
         .filter(f => f.status === 'PAID')
         .reduce((acc, f) => acc + (f.amount || 0), 0);
@@ -114,17 +121,20 @@ export const Dashboard: React.FC = () => {
       ]);
 
       // 2. Fetch Enrollment Data (Applications by month)
-      const { data: appsByMonth } = await supabase.from('applications').select('created_at');
+      const { data: appsByMonth } = await supabase.from('applications').select('created_at').order('created_at', { ascending: false }).limit(500);
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const currentYear = new Date().getFullYear();
-      const monthlyData = months.map((m, i) => {
-        const count = (appsByMonth || []).filter(a => {
-          const d = new Date(a.created_at);
-          return d.getMonth() === i && d.getFullYear() === currentYear;
-        }).length;
-        return { name: m, students: count };
+      
+      const counts = new Array(12).fill(0);
+      (appsByMonth || []).forEach(a => {
+        const d = new Date(a.created_at);
+        if (d.getFullYear() === currentYear) {
+          counts[d.getMonth()]++;
+        }
       });
-      setEnrollmentData(monthlyData.slice(0, 6)); // Show first 6 months for now or last 6
+
+      const monthlyData = months.map((m, i) => ({ name: m, students: counts[i] }));
+      setEnrollmentData(monthlyData.slice(0, 6)); 
 
       // 3. Fee Distribution (Group by description)
       const feeGroups: Record<string, number> = {};

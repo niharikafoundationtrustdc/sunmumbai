@@ -197,8 +197,9 @@ export const Students: React.FC = () => {
         setAvailableColumns(Object.keys(data[0]));
       }
       const coursesToUse = currentCourses || courses;
+      const courseMap = new Map<string, string>((coursesToUse || []).map((c: any) => [c.id, c.name]));
+      
       const formattedStudents: Student[] = (data || []).map(s => {
-        const studentCourse = (coursesToUse || []).find((c: any) => c.id === s.course_id);
         return {
           id: s.id,
           rollNumber: s.roll_no || '',
@@ -210,7 +211,7 @@ export const Students: React.FC = () => {
           email: s.email || '',
           phone: s.phone || '',
           courseId: s.course_id || '',
-          courseName: studentCourse?.name || '',
+          courseName: courseMap.get(s.course_id) || '',
           branch: s.branch || '',
           batch: s.batch || '',
           year: s.year || '',

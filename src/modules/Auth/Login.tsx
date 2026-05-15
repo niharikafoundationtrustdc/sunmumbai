@@ -68,7 +68,7 @@ export const Login: React.FC = () => {
       <div 
         className="absolute inset-0 z-0"
         style={{
-          backgroundImage: 'url("https://images.unsplash.com/photo-1548013146-72479768bada?q=80&w=2076&auto=format&fit=crop")',
+          backgroundImage: 'url("https://images.unsplash.com/photo-1548013146-72479768bada?q=80&w=800&auto=format&fit=crop")',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}

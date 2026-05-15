@@ -15,7 +15,17 @@
 
 @layer base {
   body {
-    @apply font-sans bg-background text-text-main antialiased;
+    @apply font-sans bg-background text-text-main antialiased overflow-x-hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Prevent scroll chaining on mobile */
+  html, body {
+    overscroll-behavior-y: contain;
+  }
+
+  button, a {
+    @apply select-none touch-manipulation;
   }
   
   h1, h2, h3, h4, h5, h6 {
