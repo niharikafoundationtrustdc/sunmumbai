@@ -620,7 +620,20 @@ INSERT INTO app_settings (key, value) VALUES
 INSERT INTO courses (name, code, department, duration, semesters, credits, fee_pattern, fee_amount, description) VALUES
 ('Computer Science & Engineering', 'CSE', 'Engineering', '4 Years', 8, 160, 'SEMESTER', 25000, 'Core computer science principles and applications.'),
 ('Information Technology', 'IT', 'Engineering', '4 Years', 8, 158, 'SEMESTER', 24000, 'Focus on information systems and network technologies.'),
-('Electronics & Communication', 'ECE', 'Engineering', '4 Years', 8, 162, 'SEMESTER', 26000, 'Study of electronic circuits and communication systems.');
+('Electronics & Communication', 'ECE', 'Engineering', '4 Years', 8, 162, 'SEMESTER', 26000, 'Study of electronic circuits and communication systems.'),
+('Diploma in Pharmacy', 'DP', 'Pharmacy', '2 Year', 2, 60, 'ANNUAL', 25000, 'Pharmaceutical sciences diploma program.'),
+('Bachelor of Pharmacy', 'BP', 'Pharmacy', '4 Year', 4, 240, 'ANNUAL', 50000, 'Undergraduate pharmacy degree.'),
+('Master of Pharmacy', 'MP', 'Pharmacy', '2 Year', 4, 120, 'SEMESTER', 25000, 'Postgraduate pharmacy specialization.'),
+('Pharm D', 'PD', 'Pharmacy', '5 Year', 10, 600, 'SEMESTER', 25000, 'Doctor of Pharmacy professional degree.'),
+('General Nursing and Midwifery', 'GNM', 'Nursing', '3 Year', 3, 180, 'ANNUAL', 25000, 'Nursing and midwifery training.'),
+('B.Sc. Nursing', 'BSN', 'Nursing', '4 Year', 8, 240, 'SEMESTER', 25000, 'Bachelor of Science in Nursing.'),
+('Post Basic B.Sc. Nursing', 'PBBSN', 'Nursing', '2 Year', 2, 120, 'ANNUAL', 25000, 'Advanced nursing program for GNM holders.'),
+('M.Sc Nursing', 'MSCN', 'Nursing', '2 Year', 4, 120, 'SEMESTER', 25000, 'Master of Science in Nursing.'),
+('Bachelor of Physiotherapy', 'BPT', 'Physiotherapy', '4 Year', 4, 120, 'ANNUAL', 25000, 'Physical therapy undergraduate program.'),
+('Master of Physiotherapy', 'MPT', 'Physiotherapy', '2 Year', 2, 60, 'ANNUAL', 25000, 'Physical therapy postgraduate specialization.'),
+('Diploma in Medical Laboratory Technology', 'DMLT', 'Pathology', '2 Year', 2, 60, 'ANNUAL', 25000, 'Laboratory technology diploma.'),
+('Bachelor of Medical Laboratory Technology', 'BMLT', 'Pathology', '3 Year', 3, 180, 'ANNUAL', 25000, 'Laboratory technology degree.'),
+('Diploma in Operation Theatre Technology', 'DOTT/OT', 'Operation Theatre', '2 Year', 2, 60, 'ANNUAL', 25000, 'Operation theatre technology training.');
 
 -- Default Admin User
 INSERT INTO user_credentials (id, password, role, name, email) VALUES 

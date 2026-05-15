@@ -185,23 +185,6 @@ export const Courses: React.FC = () => {
           type: t.type
         })));
       }
-
-      // Fallback to initial data if no courses in Supabase and not a recursion
-      if ((!coursesRes.data || coursesRes.data.length === 0) && !coursesRes.error) {
-        const initialCourses = [
-          { name: 'Computer Science & Engineering', code: 'CSE', department: 'Engineering', duration: '4 Years', semesters: 8, credits: 160, description: 'Core computer science principles and applications.', fee_pattern: 'SEMESTER', fee_amount: 25000 },
-          { name: 'Information Technology', code: 'IT', department: 'Engineering', duration: '4 Years', semesters: 8, credits: 158, description: 'Focus on information systems and network technologies.', fee_pattern: 'SEMESTER', fee_amount: 24000 },
-          { name: 'Electronics & Communication', code: 'ECE', department: 'Engineering', duration: '4 Years', semesters: 8, credits: 162, description: 'Study of electronic circuits and communication systems.', fee_pattern: 'SEMESTER', fee_amount: 26000 }
-        ];
-        const { error: insertError } = await supabase.from('courses').upsert(initialCourses, { onConflict: 'code' });
-        if (!insertError) {
-          // Re-fetch only once
-          const { data: newCourses } = await supabase.from('courses').select('*');
-          if (newCourses) setCourses(newCourses);
-        } else {
-          console.error('Failed to seed initial courses:', insertError);
-        }
-      }
     } catch (err) {
       console.error('Exception in fetchData:', err);
     }
@@ -238,9 +221,41 @@ export const Courses: React.FC = () => {
   };
 
   const handleDeleteCourse = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this course?')) {
-      const { error } = await supabase.from('courses').delete().eq('id', id);
-      if (!error) fetchData();
+    if (window.confirm('Are you sure you want to delete this course? This will remove all associated timetable slots, syllabus items, and study logs. If students are enrolled, you must remove them first.')) {
+      try {
+        // 1. Check for students first (safety check)
+        const { count: studentCount } = await supabase.from('students').select('*', { count: 'exact', head: true }).eq('course_id', id);
+        if (studentCount && studentCount > 0) {
+          alert(`Cannot delete course: There are ${studentCount} students enrolled in this course. Please reassign or remove students first.`);
+          return;
+        }
+
+        // 2. Check for applications
+        const { count: appCount } = await supabase.from('applications').select('*', { count: 'exact', head: true }).eq('course_id', id);
+        if (appCount && appCount > 0) {
+          alert(`Cannot delete course: There are ${appCount} pending applications for this course.`);
+          return;
+        }
+
+        // 3. Clean up low-risk dependencies manually
+        await Promise.all([
+          supabase.from('timetable').delete().eq('course_id', id),
+          supabase.from('syllabus').delete().eq('course_id', id),
+          supabase.from('study_activities').delete().eq('course_id', id)
+        ]);
+
+        // 4. Finally delete the course
+        const { error } = await supabase.from('courses').delete().eq('id', id);
+        if (error) {
+          console.error('Error deleting course:', error);
+          alert(`Failed to delete course: ${error.message}`);
+        } else {
+          fetchData();
+        }
+      } catch (err) {
+        console.error('Error in handleDeleteCourse:', err);
+        alert('An unexpected error occurred while deleting the course.');
+      }
     }
   };
 
