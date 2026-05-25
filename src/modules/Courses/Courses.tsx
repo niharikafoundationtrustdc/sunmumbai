@@ -112,6 +112,28 @@ export const Courses: React.FC = () => {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirmState, setDeleteConfirmState] = useState<{
+    type: 'course' | 'syllabus' | 'studylog' | null;
+    id: string | null;
+    title: string;
+    details?: string;
+  }>({ type: null, id: null, title: '' });
+
+  const confirmDelete = async () => {
+    const { type, id } = deleteConfirmState;
+    if (!type || !id) return;
+    
+    setDeleteConfirmState({ type: null, id: null, title: '' });
+    
+    if (type === 'course') {
+      await handleDeleteCourse(id);
+    } else if (type === 'syllabus') {
+      await handleDeleteSyllabus(id);
+    } else if (type === 'studylog') {
+      await handleDeleteStudyLog(id);
+    }
+  };
 
   // Form states
   const [courseForm, setCourseForm] = useState<Partial<Course>>({});
@@ -221,41 +243,65 @@ export const Courses: React.FC = () => {
   };
 
   const handleDeleteCourse = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this course? This will remove all associated timetable slots, syllabus items, and study logs. If students are enrolled, you must remove them first.')) {
-      try {
-        // 1. Check for students first (safety check)
-        const { count: studentCount } = await supabase.from('students').select('*', { count: 'exact', head: true }).eq('course_id', id);
-        if (studentCount && studentCount > 0) {
-          alert(`Cannot delete course: There are ${studentCount} students enrolled in this course. Please reassign or remove students first.`);
-          return;
-        }
+    setDeletingId(id);
+    try {
+      // 1. Critical blocks: Students and Applications
+      const [
+        { count: studentCount, error: stuErr },
+        { count: appCount, error: appErr }
+      ] = await Promise.all([
+        supabase.from('students').select('*', { count: 'exact', head: true }).eq('course_id', id),
+        supabase.from('applications').select('*', { count: 'exact', head: true }).eq('course_id', id)
+      ]);
 
-        // 2. Check for applications
-        const { count: appCount } = await supabase.from('applications').select('*', { count: 'exact', head: true }).eq('course_id', id);
-        if (appCount && appCount > 0) {
-          alert(`Cannot delete course: There are ${appCount} pending applications for this course.`);
-          return;
-        }
-
-        // 3. Clean up low-risk dependencies manually
-        await Promise.all([
-          supabase.from('timetable').delete().eq('course_id', id),
-          supabase.from('syllabus').delete().eq('course_id', id),
-          supabase.from('study_activities').delete().eq('course_id', id)
-        ]);
-
-        // 4. Finally delete the course
-        const { error } = await supabase.from('courses').delete().eq('id', id);
-        if (error) {
-          console.error('Error deleting course:', error);
-          alert(`Failed to delete course: ${error.message}`);
-        } else {
-          fetchData();
-        }
-      } catch (err) {
-        console.error('Error in handleDeleteCourse:', err);
-        alert('An unexpected error occurred while deleting the course.');
+      if (stuErr) throw stuErr;
+      if (appErr) throw appErr;
+      
+      if (studentCount && studentCount > 0) {
+        alert(`Cannot delete course: There are ${studentCount} students enrolled. Please reassign or remove students first.`);
+        setDeletingId(null);
+        return;
       }
+
+      if (appCount && appCount > 0) {
+        alert(`Cannot delete course: There are ${appCount} pending applications.`);
+        setDeletingId(null);
+        return;
+      }
+
+      // 2. Ordered Cleanup to satisfy FK constraints
+      
+      // Find exams first so we can delete results
+      const { data: courseExams } = await supabase.from('exams').select('id').eq('course_id', id);
+      const examIds = (courseExams || []).map(e => e.id);
+
+      if (examIds.length > 0) {
+        await supabase.from('results').delete().in('exam_id', examIds);
+        await supabase.from('exams').delete().in('id', examIds);
+      }
+
+      // Delete other direct course dependencies
+      await Promise.all([
+        supabase.from('papers').delete().eq('course_id', id),
+        supabase.from('attendance').delete().eq('course_id', id),
+        supabase.from('timetable').delete().eq('course_id', id),
+        supabase.from('syllabus').delete().eq('course_id', id),
+        supabase.from('study_activities').delete().eq('course_id', id),
+        supabase.from('fee_groups').delete().eq('course_id', id)
+      ]);
+
+      // 3. Finally delete the course
+      const { error } = await supabase.from('courses').delete().eq('id', id);
+      if (error) {
+        throw error;
+      } else {
+        await fetchData();
+      }
+    } catch (err: any) {
+      console.error('Error in handleDeleteCourse:', err);
+      alert(`Failed to delete course: ${err.message || 'Unknown error'}`);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -426,10 +472,8 @@ export const Courses: React.FC = () => {
   };
 
   const handleDeleteSyllabus = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this syllabus item?')) {
-      const { error } = await supabase.from('syllabus').delete().eq('id', id);
-      if (!error) fetchData();
-    }
+    const { error } = await supabase.from('syllabus').delete().eq('id', id);
+    if (!error) fetchData();
   };
 
   const handleSaveStudyLog = async () => {
@@ -469,10 +513,8 @@ export const Courses: React.FC = () => {
   };
 
   const handleDeleteStudyLog = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this study log?')) {
-      const { error } = await supabase.from('study_activities').delete().eq('id', id);
-      if (!error) fetchData();
-    }
+    const { error } = await supabase.from('study_activities').delete().eq('id', id);
+    if (!error) fetchData();
   };
 
   const generateAITimetable = () => {
@@ -537,7 +579,9 @@ export const Courses: React.FC = () => {
     (c.code || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+    const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'COLLEGE_ADMIN' || user?.role === 'PRINCIPAL';
     const isTeacher = user?.role === 'FACULTY';
+    const canManage = isAdmin || isTeacher;
 
     return (
     <div className="space-y-8">
@@ -569,7 +613,7 @@ export const Courses: React.FC = () => {
           <p className="text-slate-500">Manage academic courses and plan time tables.</p>
         </div>
         <div className="flex items-center gap-3">
-          {!isTeacher && (
+          {canManage && (
             <>
               {activeTab === 'courses' ? (
                 <button 
@@ -638,6 +682,7 @@ export const Courses: React.FC = () => {
           )}
         </div>
       </div>
+
 
       {/* Tabs */}
       <div className="flex items-center gap-2 p-1 bg-primary/5 rounded-2xl w-full overflow-x-auto no-scrollbar">
@@ -730,7 +775,7 @@ export const Courses: React.FC = () => {
                     <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
                       <BookOpen className="w-6 h-6" />
                     </div>
-                    {!isTeacher && (
+                    {canManage && (
                       <div className="flex items-center gap-1">
                         <button 
                           onClick={() => {
@@ -738,15 +783,30 @@ export const Courses: React.FC = () => {
                             setCourseForm(course);
                             setIsCourseModalOpen(true);
                           }}
-                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                          className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                         >
-                          <Edit2 className="w-4 h-4" />
+                          <Edit2 className="w-5 h-5" />
                         </button>
                         <button 
-                          onClick={() => handleDeleteCourse(course.id)}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                          onClick={() => setDeleteConfirmState({ 
+                            type: 'course', 
+                            id: course.id, 
+                            title: course.name,
+                            details: 'This will remove all associated data including timetable, syllabus, exams, papers, attendance, and fees. Enrolled students and pending applications must be handled first.'
+                          })}
+                          disabled={deletingId === course.id}
+                          className={cn(
+                            "p-3 rounded-xl transition-all",
+                            deletingId === course.id 
+                              ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
+                              : "text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                          )}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {deletingId === course.id ? (
+                            <div className="w-5 h-5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Trash2 className="w-5 h-5" />
+                          )}
                         </button>
                       </div>
                     )}
@@ -888,23 +948,27 @@ export const Courses: React.FC = () => {
                                             "text-primary"
                                           )}>{s.subject}</p>
                                         </div>
-                                        {!isTeacher && (
+                                        {canManage && (
                                           <div className="flex items-center gap-1 opacity-0 group-hover/slot:opacity-100 transition-opacity">
                                             <button 
-                                              onClick={() => {
+                                              onClick={(e) => {
+                                                e.stopPropagation();
                                                 setEditingSlot(s);
                                                 setSlotForm(s);
                                                 setIsTimetableModalOpen(true);
                                               }}
-                                              className="p-1 text-slate-400 hover:text-primary"
+                                              className="p-1.5 text-slate-400 hover:text-primary bg-white/80 rounded-lg shadow-sm"
                                             >
-                                              <Edit2 className="w-3 h-3" />
+                                              <Edit2 className="w-3.5 h-3.5" />
                                             </button>
                                             <button 
-                                              onClick={() => handleDeleteSlot(s.id)}
-                                              className="p-1 text-slate-400 hover:text-rose-600"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteSlot(s.id);
+                                              }}
+                                              className="p-1.5 text-slate-400 hover:text-rose-600 bg-white/80 rounded-lg shadow-sm"
                                             >
-                                              <Trash2 className="w-3 h-3" />
+                                              <Trash2 className="w-3.5 h-3.5" />
                                             </button>
                                           </div>
                                         )}
@@ -969,10 +1033,11 @@ export const Courses: React.FC = () => {
                                 {item.unit_number}
                               </div>
                               <div className="flex-1">
+                                Navigating to units...
                                 <h4 className="font-bold text-slate-800">{item.unit_title}</h4>
                                 <p className="text-sm text-slate-500 mt-1">{item.description}</p>
                               </div>
-                              {!isTeacher && (
+                              {canManage && (
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <button 
                                     onClick={() => {
@@ -985,7 +1050,11 @@ export const Courses: React.FC = () => {
                                     <Edit2 className="w-4 h-4" />
                                   </button>
                                   <button 
-                                    onClick={() => handleDeleteSyllabus(item.id)}
+                                    onClick={() => setDeleteConfirmState({
+                                      type: 'syllabus',
+                                      id: item.id,
+                                      title: item.unit_title
+                                    })}
                                     className="p-2 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-all"
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -1057,7 +1126,7 @@ export const Courses: React.FC = () => {
                         >
                           <MessageSquare className="w-4 h-4" />
                         </button>
-                        {!isTeacher && (
+                        {canManage && (
                           <>
                             <button 
                               onClick={() => {
@@ -1070,7 +1139,11 @@ export const Courses: React.FC = () => {
                               <Edit2 className="w-4 h-4" />
                             </button>
                             <button 
-                              onClick={() => handleDeleteStudyLog(log.id)}
+                              onClick={() => setDeleteConfirmState({
+                                type: 'studylog',
+                                id: log.id,
+                                title: `Study Log for ${formatDate(log.date)}`
+                              })}
                               className="p-2 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-all"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1606,6 +1679,57 @@ export const Courses: React.FC = () => {
           </motion.div>
         </div>
       )}
+
+      {/* Custom Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirmState.type && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden border border-slate-100"
+            >
+              <div className="p-8 border-b border-rose-50 flex items-center gap-4 bg-rose-50/30">
+                <div className="w-12 h-12 bg-rose-100 rounded-2xl flex items-center justify-center text-rose-600 shrink-0">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-rose-600">Delete Confirmation</h2>
+                  <p className="text-xs text-rose-500 font-bold uppercase tracking-wider">Are you absolutely sure?</p>
+                </div>
+              </div>
+              <div className="p-8 space-y-4">
+                <p className="text-sm font-bold text-slate-800">
+                  You are deleting the {deleteConfirmState.type}: <span className="text-primary underline">{deleteConfirmState.title}</span>.
+                </p>
+                {deleteConfirmState.details && (
+                  <p className="text-xs font-semibold text-slate-500 bg-slate-50 p-4 rounded-2xl leading-relaxed">
+                    {deleteConfirmState.details}
+                  </p>
+                )}
+                <p className="text-xs font-medium text-slate-400">
+                  This action is permanent and cannot be undone. Please confirm to proceed.
+                </p>
+              </div>
+              <div className="p-8 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button 
+                  onClick={() => setDeleteConfirmState({ type: null, id: null, title: '' })}
+                  className="px-6 py-3 text-slate-500 font-bold hover:text-slate-800 transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmDelete}
+                  className="px-8 py-3 bg-rose-600 text-white rounded-2xl font-bold hover:bg-rose-700 transition-all shadow-lg shadow-rose-600/10 text-sm"
+                >
+                  Confirm Delete
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

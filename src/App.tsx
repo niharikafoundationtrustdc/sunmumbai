@@ -80,7 +80,7 @@ export default function App() {
             <Route 
               path="/attendance" 
               element={
-                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'FACULTY', 'STUDENT', 'PARENT']}>
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'FACULTY']}>
                   <Attendance />
                 </ProtectedRoute>
               } 
@@ -88,7 +88,7 @@ export default function App() {
             <Route 
               path="/fees" 
               element={
-                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'ACCOUNTANT', 'STUDENT', 'PARENT']}>
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'ACCOUNTANT']}>
                   <Fees />
                 </ProtectedRoute>
               } 
@@ -112,7 +112,7 @@ export default function App() {
             <Route 
               path="/exams" 
               element={
-                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'FACULTY', 'STUDENT']}>
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'FACULTY']}>
                   <Exams />
                 </ProtectedRoute>
               } 
@@ -136,7 +136,7 @@ export default function App() {
             <Route 
               path="/courses" 
               element={
-                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'FACULTY', 'STUDENT']}>
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'FACULTY']}>
                   <Courses />
                 </ProtectedRoute>
               } 
@@ -160,7 +160,7 @@ export default function App() {
             <Route 
               path="/parents" 
               element={
-                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'STAFF', 'PARENT']}>
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'STAFF']}>
                   <Parents />
                 </ProtectedRoute>
               } 
@@ -168,7 +168,7 @@ export default function App() {
             <Route 
               path="/results" 
               element={
-                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'FACULTY', 'STUDENT', 'PARENT']}>
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'FACULTY']}>
                   <Results />
                 </ProtectedRoute>
               } 
