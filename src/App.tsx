@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { DashboardLayout } from './components/Layout/DashboardLayout';
 
@@ -38,6 +38,7 @@ const LoadingSpinner = () => (
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode, allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return <LoadingSpinner />;
@@ -47,8 +48,16 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode, allowedRoles?: strin
     return <Navigate to="/login" replace />;
   }
 
+  // Librarian only has access to library or profile
+  if (user.role === 'LIBRARIAN') {
+    if (location.pathname !== '/library' && location.pathname !== '/profile') {
+      return <Navigate to="/library" replace />;
+    }
+  }
+
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    const fallbackPath = user.role === 'LIBRARIAN' ? '/library' : '/';
+    return <Navigate to={fallbackPath} replace />;
   }
 
   return <DashboardLayout>{children}</DashboardLayout>;
@@ -184,7 +193,7 @@ export default function App() {
             <Route 
               path="/student-panel" 
               element={
-                <ProtectedRoute allowedRoles={['STUDENT']}>
+                <ProtectedRoute allowedRoles={['STUDENT', 'SUPER_ADMIN', 'COLLEGE_ADMIN']}>
                   <StudentPanel />
                 </ProtectedRoute>
               } 
@@ -192,7 +201,7 @@ export default function App() {
             <Route 
               path="/faculty-panel" 
               element={
-                <ProtectedRoute allowedRoles={['FACULTY']}>
+                <ProtectedRoute allowedRoles={['FACULTY', 'SUPER_ADMIN', 'COLLEGE_ADMIN']}>
                   <FacultyPanel />
                 </ProtectedRoute>
               } 
@@ -200,7 +209,7 @@ export default function App() {
             <Route 
               path="/parent-panel" 
               element={
-                <ProtectedRoute allowedRoles={['PARENT']}>
+                <ProtectedRoute allowedRoles={['PARENT', 'SUPER_ADMIN', 'COLLEGE_ADMIN']}>
                   <ParentPanel />
                 </ProtectedRoute>
               } 
@@ -208,7 +217,7 @@ export default function App() {
             <Route 
               path="/staff-panel" 
               element={
-                <ProtectedRoute allowedRoles={['STAFF']}>
+                <ProtectedRoute allowedRoles={['STAFF', 'SUPER_ADMIN', 'COLLEGE_ADMIN']}>
                   <StaffPanel />
                 </ProtectedRoute>
               } 
@@ -216,7 +225,7 @@ export default function App() {
             <Route 
               path="/accountant-panel" 
               element={
-                <ProtectedRoute allowedRoles={['ACCOUNTANT']}>
+                <ProtectedRoute allowedRoles={['ACCOUNTANT', 'SUPER_ADMIN', 'COLLEGE_ADMIN']}>
                   <AccountantPanel />
                 </ProtectedRoute>
               } 

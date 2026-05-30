@@ -26,7 +26,9 @@ import {
   TrendingDown,
   ArrowUpRight,
   TrendingUp as TrendingUpIcon,
-  Upload
+  Upload,
+  User,
+  ClipboardList
 } from 'lucide-react';
 import { cn, formatCurrency, formatDate, formatEditCount } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
@@ -53,7 +55,8 @@ export const ParentPanel: React.FC = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [childProgress, setChildProgress] = useState<ChildProgress | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'results' | 'fees' | 'application' | 'timetable' | 'courses' | 'studylog'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'details' | 'attendance' | 'results' | 'fees' | 'courses' | 'timetable' | 'syllabus' | 'studylog' | 'library' | 'documents'>('overview');
+  const [libraryIssues, setLibraryIssues] = useState<any[]>([]);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedFee, setSelectedFee] = useState<any>(null);
   const [selectedResult, setSelectedResult] = useState<any | null>(null);
@@ -230,6 +233,15 @@ export const ParentPanel: React.FC = () => {
           .order('payment_date', { ascending: false });
         
         setFeeTransactions(transactions || []);
+
+        // 13. Fetch Library Materials
+        const { data: libraryIssuesData } = await supabase
+          .from('library_issues')
+          .select('*, library_items(*)')
+          .eq('student_id', student.id)
+          .order('issue_date', { ascending: false });
+
+        setLibraryIssues(libraryIssuesData || []);
 
         const attendanceList = attendance || [];
         const presentCount = attendanceList.filter(a => a.status === 'Present' || a.status === 'PRESENT').length;
@@ -727,21 +739,30 @@ export const ParentPanel: React.FC = () => {
 
       {/* Tabs */}
       <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl w-fit overflow-x-auto no-scrollbar">
-        {(['overview', 'attendance', 'studylog', 'results', 'fees', 'documents', 'application', 'timetable', 'courses'] as const).map((tab) => (
+        {[
+          { id: 'overview', label: 'Overview' },
+          { id: 'details', label: "Child's Profile" },
+          { id: 'courses', label: 'Enrolled Courses' },
+          { id: 'syllabus', label: 'Syllabus' },
+          { id: 'studylog', label: 'Study Log' },
+          { id: 'attendance', label: 'Attendance' },
+          { id: 'results', label: 'Results' },
+          { id: 'library', label: 'Library Materials' },
+          { id: 'documents', label: 'Submitted Documents' },
+          { id: 'fees', label: 'Fees Details' },
+          { id: 'timetable', label: 'Time Table' }
+        ].map((tab) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab as any)}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
             className={cn(
-              "px-6 py-2.5 rounded-xl text-sm font-bold transition-all capitalize whitespace-nowrap",
-              activeTab === tab 
+              "px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+              activeTab === tab.id 
                 ? "bg-white text-primary shadow-sm" 
                 : "text-slate-500 hover:text-slate-700"
             )}
           >
-            {tab === 'studylog' ? 'Study Log' : 
-             tab === 'application' ? 'Admission' : 
-             tab === 'timetable' ? 'Time Table' : 
-             tab}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -1282,109 +1303,210 @@ export const ParentPanel: React.FC = () => {
             </div>
           )}
 
+          {activeTab === 'details' && (
+            <div className="bg-white p-8 rounded-[32px] border border-primary/10 shadow-sm space-y-8">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                  <User className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800">Child's Profile & Own Details</h3>
+                  <p className="text-sm text-slate-500 font-medium">Verified academic details & identities (Read Only)</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {/* Academic Identity */}
+                <div className="space-y-4 bg-slate-50/55 p-6 rounded-3xl border border-slate-100">
+                  <h4 className="text-xs font-black text-primary uppercase tracking-widest px-2 mb-3">Academic Identity</h4>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block px-2">Student Name</label>
+                    <p className="px-2 py-1 text-sm font-black text-slate-800">{childProgress.student.name}</p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block px-2">Student ID / Roll No</label>
+                    <p className="px-2 py-1 text-sm font-black text-slate-800">{childProgress.student.roll_no || childProgress.student.id || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block px-2">Year & Batch</label>
+                    <p className="px-2 py-1 text-sm font-black text-slate-800">{childProgress.student.year || 'N/A'} ({childProgress.student.batch || 'N/A'})</p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block px-2">Branch</label>
+                    <p className="px-2 py-1 text-sm font-black text-slate-800">{childProgress.student.branch || 'N/A'}</p>
+                  </div>
+                </div>
+
+                {/* Contact details */}
+                <div className="space-y-4 bg-slate-50/55 p-6 rounded-3xl border border-slate-100">
+                  <h4 className="text-xs font-black text-primary uppercase tracking-widest px-2 mb-3">Personal Info</h4>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block px-2">Email Address</label>
+                    <p className="px-2 py-1 text-sm font-black text-slate-800 break-all">{childProgress.student.email || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block px-2">Mobile Number</label>
+                    <p className="px-2 py-1 text-sm font-black text-slate-800">{childProgress.student.phone || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block px-2">Date of Birth</label>
+                    <p className="px-2 py-1 text-sm font-black text-slate-800">{childProgress.student.dob ? formatDate(childProgress.student.dob) : 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block px-2">Gender & Blood Group</label>
+                    <p className="px-2 py-1 text-sm font-black text-slate-800">
+                      {childProgress.student.gender || 'N/A'} {childProgress.student.blood_group ? `• ${childProgress.student.blood_group}` : ''}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Parent Info & Address */}
+                <div className="space-y-4 bg-slate-50/55 p-6 rounded-3xl border border-slate-100 font-bold">
+                  <h4 className="text-xs font-black text-primary uppercase tracking-widest px-2 mb-3">Parental Records</h4>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block px-2">Father / Mother</label>
+                    <p className="px-2 py-1 text-sm font-black text-slate-800">
+                      {childProgress.student.father_name || childProgress.student.mother_name || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block px-2">Parent Email / Phone</label>
+                    <p className="px-2 py-1 text-sm font-black text-slate-800">
+                      {childProgress.student.parent_email || 'N/A'} • {childProgress.student.parent_phone || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block px-2">Residential Address</label>
+                    <p className="px-2 py-1 text-sm font-black text-slate-800 leading-relaxed">
+                      {childProgress.student.address || 'N/A'}
+                      {childProgress.student.state ? `, ${childProgress.student.state}` : ''}
+                      {childProgress.student.pincode ? ` - ${childProgress.student.pincode}` : ''}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'library' && (
+            <div className="bg-white p-8 rounded-[32px] border border-primary/10 shadow-sm space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                  <BookOpen className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800">Library Materials Borrowed</h3>
+                  <p className="text-sm text-slate-500 font-medium">Real-time textbooks issues & return status details (Read Only)</p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Book Title / Author</th>
+                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Issued Date</th>
+                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Due Date</th>
+                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Returned Date</th>
+                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {libraryIssues.map((issue, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50">
+                        <td className="px-8 py-5">
+                          <p className="font-bold text-slate-800 text-sm">{issue.library_items?.title || 'N/A'}</p>
+                          <p className="text-[10px] font-medium text-slate-400">{issue.library_items?.author || 'Unknown'}</p>
+                        </td>
+                        <td className="px-8 py-5 text-slate-600 text-sm font-bold">{formatDate(issue.issue_date)}</td>
+                        <td className="px-8 py-5 text-slate-600 text-sm font-bold">{formatDate(issue.due_date)}</td>
+                        <td className="px-8 py-5 text-slate-500 text-sm font-medium">
+                          {issue.return_date ? formatDate(issue.return_date) : '--'}
+                        </td>
+                        <td className="px-8 py-5 text-right">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
+                            issue.status === 'Returned' && "bg-emerald-50 text-emerald-600",
+                            issue.status === 'Issued' && "bg-indigo-50 text-indigo-600",
+                            issue.status === 'Overdue' && "bg-rose-50 text-rose-600"
+                          )}>
+                            {issue.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {libraryIssues.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-8 py-12 text-center text-slate-400 font-bold">
+                          No library materials borrowed yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'syllabus' && (
+            <div className="bg-white p-8 rounded-[32px] border border-primary/10 shadow-sm space-y-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                  <ClipboardList className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800">Course Syllabus</h3>
+                  <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Curriculum unit index</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {syllabus.map((item) => (
+                  <div key={item.id} className="flex items-start gap-6 p-6 bg-slate-50 rounded-[24px] border border-transparent hover:bg-white hover:border-primary/10 transition-all">
+                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary font-black text-lg shadow-sm shrink-0 border border-slate-100">
+                      {item.unit_number || item.unitNumber || '1'}
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-black text-slate-800 mb-1">{item.unit_title || item.title || 'Introduction'}</h4>
+                      <p className="text-sm text-slate-500 leading-relaxed">{item.description}</p>
+                    </div>
+                  </div>
+                ))}
+                {syllabus.length === 0 && (
+                  <p className="text-center py-12 text-slate-400 font-bold">Syllabus not yet updated.</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {activeTab === 'documents' && (
-            <div className="space-y-8">
-              {/* Document Overview */}
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                {/* Upload Section */}
-                <div className="lg:col-span-1 space-y-6">
-                  <div className="bg-primary/5 p-8 rounded-[32px] border-2 border-dashed border-primary/20 text-center relative group hover:border-primary/40 transition-all">
-                    <input 
-                      type="file" 
-                      id="parent-doc-upload" 
-                      className="hidden" 
-                      onChange={handleFileUpload}
-                      disabled={isUploading}
-                    />
-                    <label htmlFor="parent-doc-upload" className="cursor-pointer block">
-                       <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-primary mx-auto shadow-sm mb-4 group-hover:scale-110 transition-transform">
-                         {isUploading ? (
-                           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                         ) : (
-                           <Upload className="w-8 h-8" />
-                         )}
-                       </div>
-                       <h4 className="font-black text-slate-800">Upload Doc</h4>
-                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Proof, ID Card, etc.</p>
-                       <div className="mt-6 px-4 py-3 bg-primary text-white rounded-xl text-xs font-black shadow-lg shadow-primary/20 pointer-events-none">
-                         Select File
-                       </div>
-                    </label>
-                  </div>
-                  
-                  <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm">
-                        <File className="w-5 h-5" />
+            <div className="bg-white p-8 rounded-[32px] border border-primary/10 shadow-sm space-y-8">
+              <div className="flex items-center gap-2">
+                 <Award className="w-6 h-6 text-indigo-600" />
+                 <h3 className="text-xl font-black text-slate-800">Submitted Documents & Official Records</h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {documents.map((doc, i) => (
+                  <div key={i} className="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between hover:bg-white hover:border-primary/10 transition-all group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-white shadow-sm border border-slate-100 rounded-xl flex items-center justify-center text-indigo-600">
+                         <File className="w-5 h-5" />
                       </div>
-                      <h4 className="font-black text-indigo-900 text-sm">Document Storage</h4>
+                      <div className="min-w-0">
+                         <p className="text-sm font-black text-slate-800 truncate max-w-[200px]">{doc.remarks || 'Document Submission'}</p>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{formatDate(doc.created_at)} • {doc.category || 'Official'}</p>
+                      </div>
                     </div>
-                    <p className="text-xs text-indigo-700 leading-relaxed font-medium">Keep track of your child's academic certifications and official notices securely stored here.</p>
-                  </div>
-                </div>
-
-                {/* List Sections */}
-                <div className="lg:col-span-3 space-y-8">
-                  {/* Received (Official) */}
-                  <div className="bg-white p-8 rounded-[32px] border border-primary/10 shadow-sm">
-                    <div className="flex items-center gap-2 mb-6">
-                       <Award className="w-6 h-6 text-indigo-600" />
-                       <h3 className="text-xl font-black text-slate-800">Official Documents Received</h3>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {documents.filter(d => d.category === 'Official').map((doc, i) => (
-                        <div key={i} className="p-5 bg-indigo-50/30 rounded-3xl border border-indigo-100 flex items-center justify-between group hover:bg-indigo-50/60 transition-all">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm">
-                               <File className="w-5 h-5" />
-                            </div>
-                            <div className="min-w-0">
-                               <p className="text-sm font-black text-slate-800 truncate max-w-[150px]">{doc.remarks || 'College Certificate'}</p>
-                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{formatDate(doc.created_at)}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                             <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-primary"><Eye className="w-5 h-5" /></a>
-                             <a href={doc.file_url} download className="p-2 text-slate-400 hover:text-primary"><Download className="w-5 h-5" /></a>
-                          </div>
-                        </div>
-                      ))}
-                      {documents.filter(d => d.category === 'Official').length === 0 && (
-                        <div className="col-span-full py-12 text-center text-slate-300 font-bold">No official documents yet.</div>
-                      )}
+                    <div className="flex items-center gap-1">
+                       <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-primary"><Eye className="w-5 h-5" /></a>
+                       <a href={doc.file_url} download className="p-2 text-slate-400 hover:text-primary"><Download className="w-5 h-5" /></a>
                     </div>
                   </div>
-
-                  {/* My Uploads (Personal/Parental) */}
-                  <div className="bg-white p-8 rounded-[32px] border border-primary/10 shadow-sm">
-                    <div className="flex items-center gap-2 mb-6">
-                       <History className="w-6 h-6 text-primary" />
-                       <h3 className="text-xl font-black text-slate-800">Recent Uploads</h3>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {documents.filter(d => d.category !== 'Official').map((doc, i) => (
-                        <div key={i} className="p-5 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-between group hover:bg-white hover:border-primary/10 transition-all">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-primary shadow-sm border border-slate-100">
-                               <File className="w-5 h-5" />
-                            </div>
-                            <div className="min-w-0">
-                               <p className="text-sm font-black text-slate-800 truncate max-w-[150px]">{doc.remarks || 'Student Document'}</p>
-                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{formatDate(doc.created_at)}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                             <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-primary"><Eye className="w-5 h-5" /></a>
-                             <a href={doc.file_url} download className="p-2 text-slate-400 hover:text-primary"><Download className="w-5 h-5" /></a>
-                          </div>
-                        </div>
-                      ))}
-                      {documents.filter(d => d.category !== 'Official').length === 0 && (
-                         <div className="col-span-full py-12 text-center text-slate-300 font-bold italic">You haven't uploaded any personal docs.</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                ))}
+                {documents.length === 0 && (
+                  <div className="col-span-full py-12 text-center text-slate-300 font-bold">No documents on file.</div>
+                )}
               </div>
             </div>
           )}

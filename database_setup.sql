@@ -67,6 +67,12 @@ CREATE TABLE IF NOT EXISTS students (
   student_documents TEXT[],
   parent_documents TEXT[],
   signature_url TEXT,
+  aadhar_url TEXT,
+  pan_url TEXT,
+  passport_url TEXT,
+  marksheet_10_url TEXT,
+  marksheet_12_url TEXT,
+  parent_aadhar_url TEXT,
   status TEXT DEFAULT 'Active',
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -215,4 +221,34 @@ BEGIN
         CREATE POLICY "Modify Authenticated" ON public.papers FOR ALL TO authenticated USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
     END IF;
 END $$;
+
+-- 8. Document Records Table
+CREATE TABLE IF NOT EXISTS student_document_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id TEXT REFERENCES students(id) ON DELETE CASCADE,
+    document_type TEXT NOT NULL,
+    document_number TEXT,
+    category TEXT NOT NULL,
+    status TEXT DEFAULT 'Submitted',
+    issued_to TEXT,
+    issued_date DATE,
+    collected_by TEXT,
+    collection_date DATE,
+    file_url TEXT,
+    remarks TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- RLS policies for student_document_records
+ALTER TABLE student_document_records ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public Read student_document_records" ON student_document_records;
+DROP POLICY IF EXISTS "Public Insert student_document_records" ON student_document_records;
+DROP POLICY IF EXISTS "Public Update student_document_records" ON student_document_records;
+DROP POLICY IF EXISTS "Public Delete student_document_records" ON student_document_records;
+
+CREATE POLICY "Public Read student_document_records" ON student_document_records FOR SELECT USING (true);
+CREATE POLICY "Public Insert student_document_records" ON student_document_records FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "Public Update student_document_records" ON student_document_records FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Public Delete student_document_records" ON student_document_records FOR DELETE TO anon, authenticated USING (true);
+
 

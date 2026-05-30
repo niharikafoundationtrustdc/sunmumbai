@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import { cn, formatDate } from '../../lib/utils';
 import { exportToPDF } from '../../lib/exportUtils';
+import { useAuth } from '../../hooks/useAuth';
 
 interface FeeTransaction {
   id: string;
@@ -46,6 +47,7 @@ interface FeeStructure {
 }
 
 export const Fees: React.FC = () => {
+  const { user } = useAuth();
   const [transactions, setTransactions] = useState<FeeTransaction[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [students, setStudents] = useState<any[]>([]);
@@ -114,6 +116,11 @@ export const Fees: React.FC = () => {
 
   const handleSave = async () => {
     try {
+      if (user?.role !== 'ACCOUNTANT') {
+        alert('Permission Denied: Only Accountants can collect fees.');
+        return;
+      }
+
       if (!selectedStudent) {
         alert('Please select a student');
         return;
@@ -166,6 +173,18 @@ export const Fees: React.FC = () => {
 
   return (
     <div className="space-y-6 md:space-y-8 pb-10 md:pb-0">
+      {user?.role !== 'ACCOUNTANT' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-amber-800">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-6 h-6 text-amber-600 shrink-0" />
+            <div>
+              <p className="text-sm font-black">Access Restricted to Accountant Role Only</p>
+              <p className="text-xs font-bold text-amber-700 mt-0.5">Under institutional guidelines, only the assigned Accountant can collect fees and log payments.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-primary tracking-tight">Fee Management</h1>
@@ -173,6 +192,10 @@ export const Fees: React.FC = () => {
         </div>
         <button 
           onClick={() => {
+            if (user?.role !== 'ACCOUNTANT') {
+              alert('Permission Denied: Only Accountants can collect fees.');
+              return;
+            }
             setSelectedStudent(null);
             setStudentSearchInput('');
             setMatchingStudents([]);
@@ -180,7 +203,13 @@ export const Fees: React.FC = () => {
             setFilterBatch('');
             setIsModalOpen(true);
           }}
-          className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-4 md:py-3 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-all shadow-xl shadow-primary/20 active:scale-[0.98]"
+          disabled={user?.role !== 'ACCOUNTANT'}
+          className={cn(
+            "w-full md:w-auto flex items-center justify-center gap-2 px-6 py-4 md:py-3 rounded-2xl font-bold transition-all shadow-xl active:scale-[0.98]",
+            user?.role === 'ACCOUNTANT' 
+              ? "bg-primary text-white shadow-primary/20 hover:bg-primary/90" 
+              : "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none border border-slate-200"
+          )}
         >
           <Plus className="w-5 h-5" />
           Collect New Fee

@@ -29,6 +29,7 @@ import {
   Building2,
   Printer,
   Share2,
+  Eye,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, safeLocalStorageSet } from '../../lib/utils';
@@ -292,45 +293,224 @@ export const Students: React.FC = () => {
         <html>
           <head>
             <title>Admission Confirmation - ${student.name}</title>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
             <style>
               @page { size: A4 portrait; margin: 15mm; }
-              body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; color: #333; }
-              .header { text-align: center; border-bottom: 2px solid #ef4444; padding-bottom: 20px; margin-bottom: 30px; position: relative; }
-              .logo { position: absolute; left: 0; top: 0; width: 80px; height: 80px; object-fit: contain; }
-              .foundation { font-size: 14px; font-weight: bold; margin: 0; color: #666; }
-              .college { font-size: 28px; font-weight: 900; margin: 5px 0; color: #ef4444; text-transform: uppercase; }
-              .details { font-size: 12px; color: #666; margin: 2px 0; }
+              * { box-sizing: border-box; }
+              body { 
+                font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+                margin: 0; 
+                padding: 0; 
+                color: #1e293b; 
+                background-color: #fff;
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+              }
               
-              .title { text-align: center; font-size: 22px; font-weight: bold; text-decoration: underline; margin: 30px 0; text-transform: uppercase; }
+              /* Non-overlapping flexbox layout for the logo, text and photograph */
+              .header { 
+                display: flex; 
+                align-items: center; 
+                justify-content: space-between; 
+                border-bottom: 3px solid #ef4444; 
+                padding-bottom: 20px; 
+                margin-bottom: 25px; 
+                gap: 15px;
+              }
+              .header-logo { 
+                width: 90px; 
+                height: 90px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0; 
+              }
+              .logo { 
+                width: 100%; 
+                height: 100%; 
+                object-fit: contain; 
+              }
+              .header-text { 
+                flex-grow: 1; 
+                text-align: center; 
+                padding: 0 10px;
+              }
+              .foundation { 
+                font-size: 13px; 
+                font-weight: 700; 
+                margin: 0 0 4px 0; 
+                color: #64748b; 
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              }
+              .college { 
+                font-size: 24px; 
+                font-weight: 900; 
+                margin: 0 0 6px 0; 
+                color: #ef4444; 
+                text-transform: uppercase;
+                line-height: 1.25;
+              }
+              .details { 
+                font-size: 11px; 
+                color: #4b5563; 
+                margin: 3px 0; 
+                line-height: 1.4;
+              }
+              .header-photo { 
+                width: 120px; 
+                flex-shrink: 0; 
+                display: flex; 
+                justify-content: flex-end; 
+              }
+              .photo-box { 
+                width: 110px; 
+                height: 130px; 
+                border: 2px dashed #cbd5e1; 
+                border-radius: 8px;
+                display: flex; 
+                align-items: center; 
+                justify-content: center; 
+                text-align: center; 
+                font-size: 9px; 
+                font-weight: 600;
+                color: #64748b; 
+                padding: 6px; 
+                background: #f8fafc; 
+              }
+              .photo-img { 
+                width: 100%; 
+                height: 100%; 
+                object-fit: cover; 
+                border-radius: 6px;
+              }
               
-              .info-section { margin-bottom: 30px; }
-              .section-title { background: #f8fafc; padding: 8px 15px; border-left: 4px solid #ef4444; font-weight: bold; font-size: 14px; margin-bottom: 15px; text-transform: uppercase; }
+              .title { 
+                text-align: center; 
+                font-size: 18px; 
+                font-weight: 800; 
+                margin: 15px 0 25px 0; 
+                text-transform: uppercase; 
+                letter-spacing: 1px;
+                color: #0f172a;
+                border-bottom: 2px solid #0f172a;
+                padding-bottom: 8px;
+              }
               
-              .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 0 15px; }
-              .item { border-bottom: 1px dotted #ccc; padding: 5px 0; display: flex; align-items: flex-end; }
-              .label { font-weight: bold; font-size: 12px; color: #4b5563; min-width: 140px; }
-              .value { font-size: 13px; color: #000; font-weight: 600; }
-
-              .photo-box { position: absolute; right: 0; top: 0; width: 120px; height: 140px; border: 1px solid #ccc; display: flex; items-center; justify-content: center; font-size: 10px; color: #999; }
-              .photo-img { width: 100%; height: 100%; object-fit: cover; }
+              .info-section { 
+                margin-bottom: 25px; 
+                page-break-inside: avoid;
+              }
+              .section-title { 
+                background: #f1f5f9; 
+                padding: 8px 14px; 
+                border-left: 5px solid #ef4444; 
+                font-weight: 800; 
+                font-size: 12px; 
+                margin-bottom: 12px; 
+                text-transform: uppercase; 
+                color: #1e293b;
+                letter-spacing: 0.5px;
+              }
               
-              .declaration { font-size: 11px; line-height: 1.6; margin-top: 40px; padding: 15px; background: #f9fafb; border: 1px solid #e2e8f0; border-radius: 8px; }
+              .grid { 
+                display: grid; 
+                grid-template-columns: 1fr 1fr; 
+                gap: 12px 24px; 
+                padding: 0 10px; 
+              }
+              .item { 
+                border-bottom: 1px dotted #cbd5e1; 
+                padding: 6px 0; 
+                display: flex; 
+                justify-content: space-between;
+                align-items: flex-end; 
+              }
+              .label { 
+                font-weight: 700; 
+                font-size: 11px; 
+                color: #475569; 
+                text-transform: uppercase;
+                letter-spacing: 0.3px;
+                flex-shrink: 0;
+                margin-right: 10px;
+              }
+              .value { 
+                font-size: 11px; 
+                color: #0f172a; 
+                font-weight: 600; 
+                text-align: right;
+                word-break: break-word;
+              }
               
-              .footer { margin-top: 80px; display: flex; justify-content: space-between; padding: 0 40px; }
-              .sig { text-align: center; border-top: 1.5px solid #000; padding-top: 8px; min-width: 180px; font-weight: bold; font-size: 13px; }
+              .declaration { 
+                font-size: 10.5px; 
+                line-height: 1.6; 
+                margin-top: 30px; 
+                padding: 15px; 
+                background: #f8fafc; 
+                border: 1px dashed #cbd5e1; 
+                border-radius: 12px; 
+                page-break-inside: avoid;
+                color: #334155;
+              }
+              .declaration strong {
+                color: #0f172a;
+              }
               
-              .timestamp { position: fixed; bottom: 10px; right: 20px; font-size: 10px; color: #94a3b8; }
+              .footer { 
+                margin-top: 60px; 
+                display: flex; 
+                justify-content: space-between; 
+                padding: 0 20px; 
+                page-break-inside: avoid;
+              }
+              .sig { 
+                text-align: center; 
+                border-top: 1.5px solid #0f172a; 
+                padding-top: 8px; 
+                width: 220px; 
+                font-weight: 700; 
+                font-size: 11px; 
+                color: #1e293b;
+              }
+              
+              .timestamp { 
+                position: fixed; 
+                bottom: 10px; 
+                right: 20px; 
+                font-size: 9px; 
+                color: #94a3b8; 
+                font-weight: 500;
+              }
+              
+              @media print {
+                body { 
+                  background-color: #fff; 
+                }
+                .no-print { 
+                  display: none; 
+                }
+              }
             </style>
           </head>
           <body>
             <div class="header">
-              ${settings.logo ? `<img src="${settings.logo}" class="logo" referrerPolicy="no-referrer" />` : ''}
-              <p class="foundation">${settings.foundationName || 'Sri Kailashnath Foundation®'}</p>
-              <h1 class="college">${settings.collegeName || 'SUN GROUP OF INSTITUTIONS'}</h1>
-              <p class="details">${settings.address || 'Mumbai, Maharashtra'}</p>
-              <p class="details">Contact: ${settings.phone || 'N/A'} | Email: ${settings.email || 'N/A'}</p>
-              <div class="photo-box">
-                ${student.photoUrl ? `<img src="${student.photoUrl}" class="photo-img" />` : 'Affix Recent Passport Size Photograph'}
+              <div class="header-logo">
+                ${settings.logo ? `<img src="${settings.logo}" class="logo" referrerPolicy="no-referrer" />` : ''}
+              </div>
+              <div class="header-text">
+                <p class="foundation">${settings.foundationName || 'Sri Kailashnath Foundation®'}</p>
+                <h1 class="college">${settings.collegeName || 'SUN GROUP OF INSTITUTIONS'}</h1>
+                <p class="details">${settings.address || 'Mumbai, Maharashtra'}</p>
+                <p class="details">Contact: ${settings.phone || 'N/A'} | Email: ${settings.email || 'N/A'}</p>
+              </div>
+              <div class="header-photo">
+                <div class="photo-box">
+                  ${student.photoUrl ? `<img src="${student.photoUrl}" class="photo-img" />` : 'Affix Recent Passport size image'}
+                </div>
               </div>
             </div>
 
@@ -361,14 +541,32 @@ export const Students: React.FC = () => {
             </div>
 
             <div class="info-section">
-              <div class="section-title">Family Details</div>
+              <div class="section-title">Contact & Address Details</div>
               <div class="grid">
-                <div class="item"><span class="label">Father's Name:</span> <span class="value">${student.fatherName}</span></div>
-                <div class="item"><span class="label">Mother's Name:</span> <span class="value">${student.motherName}</span></div>
-                <div class="item"><span class="label">Emergency Contact:</span> <span class="value">${student.emergencyPhone}</span></div>
-                <div class="item"><span class="label">Parent Phone:</span> <span class="value">${student.parentPhone}</span></div>
+                <div class="item" style="grid-column: span 2;"><span class="label">Residential Address:</span> <span class="value">${student.address || 'N/A'}${student.state ? ', ' + student.state : ''}${student.pincode ? ' - ' + student.pincode : ''}</span></div>
+                <div class="item" style="grid-column: span 2;"><span class="label">Permanent Address:</span> <span class="value">${student.permanentAddress || 'N/A'}${student.permanentState ? ', ' + student.permanentState : ''}${student.permanentPincode ? ' - ' + student.permanentPincode : ''}</span></div>
               </div>
             </div>
+
+            <div class="info-section">
+              <div class="section-title">Family Details</div>
+              <div class="grid">
+                <div class="item"><span class="label">Father's Name:</span> <span class="value">${student.fatherName || 'N/A'}${student.fatherOccupation ? ' (' + student.fatherOccupation + ')' : ''}</span></div>
+                <div class="item"><span class="label">Mother's Name:</span> <span class="value">${student.motherName || 'N/A'}${student.motherOccupation ? ' (' + student.motherOccupation + ')' : ''}</span></div>
+                <div class="item"><span class="label">Emergency Contact:</span> <span class="value">${student.emergencyPhone || 'N/A'}</span></div>
+                <div class="item"><span class="label">Parent Phone:</span> <span class="value">${student.parentPhone || 'N/A'}</span></div>
+              </div>
+            </div>
+
+            ${(student.isHosteller || student.transportMode) ? `
+              <div class="info-section">
+                <div class="section-title">Other Facilities</div>
+                <div class="grid">
+                  <div class="item"><span class="label">Accommodation:</span> <span class="value">${student.isHosteller ? `Hosteller (${student.hostelName || 'N/A'} - Room ${student.roomNumber || 'N/A'})` : 'Day Scholar'}</span></div>
+                  <div class="item"><span class="label">Transport Mode:</span> <span class="value">${student.transportMode || 'Self/Other'}${student.routeName ? ` (Route: ${student.routeName})` : ''}</span></div>
+                </div>
+              </div>
+            ` : ''}
 
             <div class="declaration">
               <strong>Declaration:</strong> I hereby declare that all the information provided above is true to the best of my knowledge. I agree to abide by the rules and regulations of the institution. My admission is subject to verification of original documents.
@@ -830,6 +1028,41 @@ export const Students: React.FC = () => {
       alert('Error updating record: ' + error.message);
     }
   };
+
+  const handleUpdatePrimaryDoc = async (field: string, newUrl: string | null) => {
+    if (!viewingStudent) return;
+    
+    let updateField = field;
+    let dbValue: any = newUrl;
+    
+    if (field === 'studentDocsUrl') {
+      updateField = 'student_documents';
+      dbValue = newUrl ? [newUrl] : null;
+    }
+    
+    const { error } = await supabase
+      .from('students')
+      .update({ [updateField]: dbValue })
+      .eq('id', viewingStudent.id);
+      
+    if (error) {
+      console.error('Error updating document:', error);
+      alert('Error updating document: ' + error.message);
+    } else {
+      const updatedStudent = { 
+        ...viewingStudent, 
+        [field]: newUrl 
+      };
+      
+      if (field === 'signature_url') {
+        updatedStudent.signatureUrl = newUrl || '';
+      }
+      
+      setViewingStudent(updatedStudent);
+      await fetchStudents();
+    }
+  };
+
   const handlePrintDocAcknowledgement = (doc: any) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow || !viewingStudent) return;
@@ -1109,26 +1342,101 @@ export const Students: React.FC = () => {
     </div>
   );
 
-  const DocCard = ({ title, url, onView, isImage }: { title: string; url?: string; onView: () => void; isImage?: boolean }) => (
-    <div className="bg-slate-50 p-6 rounded-[24px] border border-slate-100 flex flex-col items-center gap-4 text-center">
-      <div className={cn(
-        "w-12 h-12 rounded-2xl flex items-center justify-center",
-        url ? "bg-green-100 text-green-600" : "bg-slate-100 text-slate-400"
-      )}>
-        {url ? <CheckCircle2 className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
+  const DocCard = ({ 
+    title, 
+    url, 
+    onView, 
+    onUpload, 
+    onDelete, 
+    isImage 
+  }: { 
+    title: string; 
+    url?: string; 
+    onView: () => void; 
+    onUpload: (newUrl: string) => void; 
+    onDelete: () => void; 
+    isImage?: boolean 
+  }) => (
+    <div className="bg-slate-50 p-6 rounded-[24px] border border-slate-100 flex flex-col items-center gap-4 text-center justify-between min-h-[220px]">
+      <div className="flex flex-col items-center gap-3">
+        <div className={cn(
+          "w-12 h-12 rounded-2xl flex items-center justify-center",
+          url ? "bg-green-100 text-green-600" : "bg-slate-100 text-slate-400"
+        )}>
+          {url ? <CheckCircle2 className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
+        </div>
+        <div>
+          <p className="text-sm font-black text-slate-800 mb-1">{title}</p>
+          <p className={cn("text-[10px] font-bold", url ? "text-green-600" : "text-slate-400")}>
+            {url ? 'Document Verified' : 'No Document Found'}
+          </p>
+        </div>
       </div>
-      <div>
-        <p className="text-sm font-black text-slate-800 mb-1">{title}</p>
-        <p className={cn("text-[10px] font-bold", url ? "text-green-600" : "text-slate-400")}>
-          {url ? 'Document Verified' : 'No Document Found'}
-        </p>
-      </div>
-      {url && (
+      
+      {url ? (
+        <div className="w-full flex gap-2">
+          <button 
+            onClick={onView}
+            className="flex-1 py-2.5 bg-white border border-slate-200 text-primary rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-white transition-all shadow-sm flex items-center justify-center gap-1"
+            title={`View ${title}`}
+          >
+            <Eye className="w-3.5 h-3.5" /> View
+          </button>
+          <button 
+            onClick={() => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = isImage ? 'image/*' : '.pdf,image/*';
+              input.onchange = (e: any) => {
+                const file = e.target.files[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    onUpload(event.target?.result as string);
+                  };
+                  reader.readAsDataURL(file);
+                }
+              };
+              input.click();
+            }}
+            className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-all shadow-sm"
+            title="Edit / Replace Document"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+          <button 
+            onClick={() => {
+              if (confirm(`Are you sure you want to delete ${title}?`)) {
+                onDelete();
+              }
+            }}
+            className="p-2.5 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-all shadow-sm"
+            title="Delete Document"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ) : (
         <button 
-          onClick={onView}
-          className="w-full py-3 bg-white border border-slate-200 text-primary rounded-xl text-xs font-bold hover:bg-primary hover:text-white transition-all shadow-sm"
+          onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = isImage ? 'image/*' : '.pdf,image/*';
+            input.onchange = (e: any) => {
+              const file = e.target.files[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                  onUpload(event.target?.result as string);
+                };
+                reader.readAsDataURL(file);
+              }
+            };
+            input.click();
+          }}
+          className="w-full py-2.5 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary/95 transition-all shadow-md shadow-primary/10 flex items-center justify-center gap-1.5"
         >
-          View {isImage ? 'Signature' : 'Document'}
+          <Upload className="w-3.5 h-3.5" /> Upload File
         </button>
       )}
     </div>
@@ -2953,51 +3261,65 @@ export const Students: React.FC = () => {
                           </table>
                         </div>
                       )}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-6 pt-8 border-t border-slate-100">
+                                     <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-6 pt-8 border-t border-slate-100">
                       <DocCard 
                         title="Student Aadhar" 
                         url={viewingStudent.aadhar_url} 
                         onView={() => handleViewDocument(viewingStudent.aadhar_url!)} 
+                        onUpload={(newUrl) => handleUpdatePrimaryDoc('aadhar_url', newUrl)}
+                        onDelete={() => handleUpdatePrimaryDoc('aadhar_url', null)}
                       />
                       <DocCard 
                         title="Student PAN" 
                         url={viewingStudent.pan_url} 
                         onView={() => handleViewDocument(viewingStudent.pan_url!)} 
+                        onUpload={(newUrl) => handleUpdatePrimaryDoc('pan_url', newUrl)}
+                        onDelete={() => handleUpdatePrimaryDoc('pan_url', null)}
                       />
                       <DocCard 
                         title="Student Passport" 
                         url={viewingStudent.passport_url} 
                         onView={() => handleViewDocument(viewingStudent.passport_url!)} 
+                        onUpload={(newUrl) => handleUpdatePrimaryDoc('passport_url', newUrl)}
+                        onDelete={() => handleUpdatePrimaryDoc('passport_url', null)}
                       />
                       <DocCard 
                         title="10th Marksheet" 
                         url={viewingStudent.marksheet_10_url} 
                         onView={() => handleViewDocument(viewingStudent.marksheet_10_url!)} 
+                        onUpload={(newUrl) => handleUpdatePrimaryDoc('marksheet_10_url', newUrl)}
+                        onDelete={() => handleUpdatePrimaryDoc('marksheet_10_url', null)}
                       />
                       <DocCard 
                         title="12th Marksheet" 
                         url={viewingStudent.marksheet_12_url} 
                         onView={() => handleViewDocument(viewingStudent.marksheet_12_url!)} 
+                        onUpload={(newUrl) => handleUpdatePrimaryDoc('marksheet_12_url', newUrl)}
+                        onDelete={() => handleUpdatePrimaryDoc('marksheet_12_url', null)}
                       />
                       <DocCard 
                         title="Parent Aadhar" 
                         url={viewingStudent.parent_aadhar_url} 
                         onView={() => handleViewDocument(viewingStudent.parent_aadhar_url!)} 
+                        onUpload={(newUrl) => handleUpdatePrimaryDoc('parent_aadhar_url', newUrl)}
+                        onDelete={() => handleUpdatePrimaryDoc('parent_aadhar_url', null)}
                       />
                       <DocCard 
                         title="Student Signature" 
                         url={viewingStudent.signature_url || viewingStudent.signatureUrl} 
                         onView={() => handleViewDocument((viewingStudent.signature_url || viewingStudent.signatureUrl)!)} 
+                        onUpload={(newUrl) => handleUpdatePrimaryDoc('signature_url', newUrl)}
+                        onDelete={() => handleUpdatePrimaryDoc('signature_url', null)}
                         isImage
                       />
                       <DocCard 
                         title="Other Documents" 
                         url={viewingStudent.studentDocsUrl} 
                         onView={() => handleViewDocument(viewingStudent.studentDocsUrl!)} 
+                        onUpload={(newUrl) => handleUpdatePrimaryDoc('studentDocsUrl', newUrl)}
+                        onDelete={() => handleUpdatePrimaryDoc('studentDocsUrl', null)}
                       />
-                    </div>
+                    </div>      </div>
                   </div>
                 )}
               </div>

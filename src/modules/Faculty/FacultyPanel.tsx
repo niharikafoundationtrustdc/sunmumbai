@@ -26,7 +26,9 @@ import {
   Volume2,
   Bell,
   Eye,
-  MessageSquare
+  MessageSquare,
+  User,
+  X
 } from 'lucide-react';
 import { cn, formatCurrency, formatDate, formatEditCount } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
@@ -85,7 +87,7 @@ import { Exams as ExamsModule } from '../Exams/Exams';
 export const FacultyPanel: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'timetable' | 'exams' | 'paper-setter' | 'results' | 'syllabus' | 'studylog' | 'courses'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'timetable' | 'exams' | 'paper-setter' | 'results' | 'syllabus' | 'studylog' | 'courses' | 'students' | 'profile'>('overview');
   const [isLoading, setIsLoading] = useState(true);
   
   // Data State
@@ -102,6 +104,28 @@ export const FacultyPanel: React.FC = () => {
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [editingExam, setEditingExam] = useState<Exam | null>(null);
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
+
+  // Faculty Profile State
+  const [facultyProfile, setFacultyProfile] = useState<any>(null);
+  const [profileForm, setProfileForm] = useState<any>({});
+
+  // Class-wise Students List State
+  const [selectedClassCourse, setSelectedClassCourse] = useState<string>('');
+  const [selectedClassBatch, setSelectedClassBatch] = useState<string>('');
+  const [selectedClassSection, setSelectedClassSection] = useState<string>('');
+  const [allStudentsClassWise, setAllStudentsClassWise] = useState<any[]>([]);
+  const [isFetchingStudents, setIsFetchingStudents] = useState<boolean>(false);
+  const [classStudentSearch, setClassStudentSearch] = useState<string>('');
+
+  // Syllabus Editing State
+  const [isSyllabusModalOpen, setIsSyllabusModalOpen] = useState(false);
+  const [editingSyllabus, setEditingSyllabus] = useState<any>(null);
+  const [syllabusForm, setSyllabusForm] = useState({
+    course_id: '',
+    unit_number: 1,
+    unit_title: '',
+    description: ''
+  });
 
   // Filter State
   const [selectedCourse, setSelectedCourse] = useState<string>('');
@@ -183,12 +207,40 @@ export const FacultyPanel: React.FC = () => {
       }
 
       if (user) {
-        const [ttRes, syllabusRes] = await Promise.all([
+        const [ttRes, syllabusRes, staffRes] = await Promise.all([
           supabase.from('timetable').select('*, courses(name)').eq('faculty', user.name).order('start_time'),
-          supabase.from('syllabus').select('*, courses(name)').order('unit_number', { ascending: true })
+          supabase.from('syllabus').select('*, courses(name)').order('unit_number', { ascending: true }),
+          supabase.from('staff').select('*').or(`email.eq."${user.email}",name.eq."${user.name}"`).maybeSingle()
         ]);
         if (ttRes.data) setTimetable(ttRes.data);
         if (syllabusRes.data) setSyllabus(syllabusRes.data);
+        if (staffRes?.data) {
+          setFacultyProfile(staffRes.data);
+          setProfileForm(staffRes.data);
+        } else {
+          const fallbackProfile = {
+            id: user.id || 'FAC1001',
+            title: 'Dr.',
+            name: user.name || 'Faculty Member',
+            email: user.email || 'faculty@college.edu',
+            phone: '9876543210',
+            branch: 'Computer Science & Engineering',
+            joiningYear: '2023',
+            designation: 'Assistant Professor',
+            status: 'Active',
+            bloodGroup: 'B+',
+            religion: 'General',
+            address: 'College Campus Quarters',
+            state: 'Delhi',
+            pincode: '110001',
+            permanentAddress: 'College Campus Quarters',
+            permanentState: 'Delhi',
+            permanentPincode: '110001',
+            transportMode: 'Private/Self'
+          };
+          setFacultyProfile(fallbackProfile);
+          setProfileForm(fallbackProfile);
+        }
       }
     } catch (error) {
       console.error('Error fetching initial data:', error);
@@ -362,6 +414,146 @@ export const FacultyPanel: React.FC = () => {
       console.error('Error creating study log:', error);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Faculty Profile Updater
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('staff')
+        .upsert({
+          ...profileForm,
+          id: profileForm.id || user?.id || 'FAC1001',
+          name: profileForm.name || user?.name || 'Faculty Member'
+        }, { onConflict: 'id' });
+
+      if (error) throw error;
+      setFacultyProfile(profileForm);
+      alert('Your Faculty profile has been updated successfully!');
+    } catch (err: any) {
+      console.error('Error updating profile upsert:', err);
+      // Fallback update
+      try {
+        const { error: updErr } = await supabase
+          .from('staff')
+          .update(profileForm)
+          .eq('id', profileForm.id);
+        if (updErr) throw updErr;
+        setFacultyProfile(profileForm);
+        alert('Your Faculty profile has been updated successfully!');
+      } catch (fallbackErr: any) {
+        alert('Failed to update profile: ' + fallbackErr.message);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Check Student List Class Wise
+  const fetchClassWiseStudents = async () => {
+    if (!selectedClassCourse) {
+      alert('Please select a course to check the student list');
+      return;
+    }
+    setIsFetchingStudents(true);
+    try {
+      let query = supabase
+        .from('students')
+        .select('id, name, roll_no, course_id, batch, status, email, phone')
+        .eq('course_id', selectedClassCourse);
+        
+      if (selectedClassBatch) {
+        query = query.eq('batch', selectedClassBatch);
+      }
+      
+      const { data, error } = await query.order('name');
+      if (error) throw error;
+      setAllStudentsClassWise(data || []);
+    } catch (error: any) {
+      console.error('Error fetching class students:', error);
+      alert('Error fetching class-wise students: ' + error.message);
+    } finally {
+      setIsFetchingStudents(false);
+    }
+  };
+
+  // Prepare and Update Syllabus
+  const handleSaveSyllabus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!syllabusForm.course_id || !syllabusForm.unit_number || !syllabusForm.unit_title) {
+      alert('Please fill in select course, enter unit number and unit title');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const dbPayload = {
+        course_id: syllabusForm.course_id,
+        unit_number: Number(syllabusForm.unit_number),
+        unit_title: syllabusForm.unit_title,
+        title: syllabusForm.unit_title, // For backward compatibility with both schemas
+        description: syllabusForm.description
+      };
+
+      if (editingSyllabus) {
+        // Update Syllabus Unit
+        const { error } = await supabase
+          .from('syllabus')
+          .update(dbPayload)
+          .eq('id', editingSyllabus.id);
+          
+        if (error) throw error;
+        alert('Syllabus unit updated successfully!');
+      } else {
+        // Create Syllabus Unit
+        const { error } = await supabase
+          .from('syllabus')
+          .insert([dbPayload]);
+          
+        if (error) throw error;
+        alert('New Syllabus unit prepared successfully!');
+      }
+
+      // Refresh syllabus list
+      const { data: latestSyllabus } = await supabase
+        .from('syllabus')
+        .select('*, courses(name)')
+        .order('unit_number', { ascending: true });
+      if (latestSyllabus) setSyllabus(latestSyllabus);
+      
+      // Close modal & reset form
+      setIsSyllabusModalOpen(false);
+      setEditingSyllabus(null);
+      setSyllabusForm({
+        course_id: '',
+        unit_number: 1,
+        unit_title: '',
+        description: ''
+      });
+    } catch (error: any) {
+      console.error('Error saving syllabus:', error);
+      alert('Failed to save syllabus unit: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteSyllabus = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this syllabus unit?')) return;
+    try {
+      const { error } = await supabase
+        .from('syllabus')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      alert('Syllabus unit deleted successfully!');
+      setSyllabus(prev => prev.filter(s => s.id !== id));
+    } catch (error: any) {
+      console.error('Error deleting syllabus unit:', error);
+      alert('Failed to delete syllabus: ' + error.message);
     }
   };
 
@@ -595,14 +787,15 @@ export const FacultyPanel: React.FC = () => {
       <div className="flex items-center gap-2 p-1 bg-primary/5 rounded-2xl overflow-x-auto no-scrollbar">
         {[
           { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-          { id: 'attendance', label: 'Attendance', icon: Users },
-          { id: 'timetable', label: 'Schedule', icon: Calendar },
+          { id: 'students', label: 'Student List', icon: Users },
+          { id: 'attendance', label: 'Attendance', icon: ClipboardList },
+          { id: 'timetable', label: 'Time Table', icon: Clock },
           { id: 'exams', label: 'Exams', icon: Calendar },
-          { id: 'paper-setter', label: 'Paper Setter', icon: FileText },
-          { id: 'results', label: 'Results', icon: Award },
-          { id: 'courses', label: 'Courses', icon: BookOpen },
+          { id: 'paper-setter', label: 'Set Paper', icon: FileText },
+          { id: 'results', label: 'Results & Answer Sheets', icon: Award },
+          { id: 'studylog', label: 'Study Log', icon: History },
           { id: 'syllabus', label: 'Syllabus', icon: BookOpen },
-          { id: 'studylog', label: 'Study Log', icon: History }
+          { id: 'profile', label: 'My Profile', icon: User }
         ].map((tab) => (
           <button
             key={tab.id}
@@ -1049,12 +1242,27 @@ export const FacultyPanel: React.FC = () => {
             className="space-y-6"
           >
             <div className="bg-white p-8 rounded-[32px] border border-primary/10 shadow-sm">
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div>
                   <h3 className="text-xl font-black text-slate-800">Syllabus Overview</h3>
-                  <p className="text-sm text-slate-500 font-medium">Read-only curriculum view.</p>
+                  <p className="text-sm text-slate-500 font-medium">Prepare, update, and review the curriculum syllabus units.</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      setEditingSyllabus(null);
+                      setSyllabusForm({
+                        course_id: courses[0]?.id || '',
+                        unit_number: syllabus.length + 1,
+                        unit_title: '',
+                        description: ''
+                      });
+                      setIsSyllabusModalOpen(true);
+                    }}
+                    className="px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-black hover:bg-primary/95 transition-all flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" /> Prepare Syllabus Unit
+                  </button>
                   <button 
                     onClick={() => handlePrintDocument('syllabus')}
                     className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all flex items-center gap-2"
@@ -1076,18 +1284,368 @@ export const FacultyPanel: React.FC = () => {
                       <div className="space-y-2">
                         {courseSyllabus.map(item => (
                           <div key={item.id} className="p-3 bg-white rounded-xl border border-slate-100 flex items-center justify-between group">
-                            <span className="text-xs font-bold text-slate-600">Unit {item.unit_number}: {item.unit_title || item.title}</span>
+                            <span className="text-xs font-bold text-slate-600">Unit {item.unit_number}: {item.unit_title || item.title || 'Untitled Unit'}</span>
+                            <div className="flex items-center gap-1">
+                              <button 
+                                onClick={() => {
+                                  setEditingSyllabus(item);
+                                  setSyllabusForm({
+                                    course_id: item.course_id || '',
+                                    unit_number: item.unit_number,
+                                    unit_title: item.unit_title || item.title || '',
+                                    description: item.description || ''
+                                  });
+                                  setIsSyllabusModalOpen(true);
+                                }}
+                                className="p-1 px-2 text-primary hover:bg-primary/5 rounded-lg text-[10px] font-black"
+                              >
+                                Edit
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteSyllabus(item.id)}
+                                className="p-1 px-2 text-rose-500 hover:bg-rose-50 rounded-lg text-[10px] font-black"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </div>
                         ))}
                         {courseSyllabus.length === 0 && <p className="text-xs text-slate-400 italic">No syllabus units found.</p>}
                       </div>
-                      <button className="w-full py-3 bg-white text-primary rounded-xl text-xs font-bold hover:bg-primary hover:text-white transition-all border border-primary/10">
-                        View Full Syllabus
-                      </button>
                     </div>
                   );
                 })}
               </div>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'students' && (
+          <motion.div 
+            key="students"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-6"
+          >
+            <div className="bg-white p-8 rounded-[32px] border border-primary/10 shadow-sm">
+              <h3 className="text-2xl font-black text-slate-800 mb-2">Check Student List Class Wise</h3>
+              <p className="text-slate-500 font-medium text-sm mb-6">Select a course/class and enter batch to view student roster profiles. Fees or complete dossiers are excluded for faculty access privileges.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Select Course / Class</label>
+                  <select 
+                    value={selectedClassCourse}
+                    onChange={(e) => setSelectedClassCourse(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  >
+                    <option value="">Choose Course</option>
+                    {courses.map((c, i) => <option key={c.id || `cl-${i}`} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Select Batch</label>
+                  <input 
+                    type="text"
+                    placeholder="e.g. 2023-27"
+                    value={selectedClassBatch}
+                    onChange={(e) => setSelectedClassBatch(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button 
+                    onClick={fetchClassWiseStudents}
+                    disabled={isFetchingStudents || !selectedClassCourse}
+                    className="w-full py-3.5 bg-primary text-white rounded-2xl font-black hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                  >
+                    {isFetchingStudents ? 'Fetching...' : 'Fetch Student Directory'}
+                  </button>
+                </div>
+              </div>
+
+              {allStudentsClassWise.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2">
+                    <div className="relative flex-1 max-w-sm">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input 
+                        type="text"
+                        placeholder="Search student in directory..."
+                        value={classStudentSearch}
+                        onChange={(e) => setClassStudentSearch(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2.5 bg-slate-100 rounded-xl text-xs font-bold outline-none border-none"
+                      />
+                    </div>
+                    <div className="px-4 py-2 bg-amber-50 border border-amber-100 text-amber-800 text-xs rounded-xl font-bold flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>Security restriction: Student fee details and complete private records are concealed.</span>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-3xl border border-slate-100">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100">
+                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Roll No</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Batch</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Official Email</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {allStudentsClassWise
+                          .filter(s => s.name?.toLowerCase().includes(classStudentSearch.toLowerCase()) || s.roll_no?.toLowerCase().includes(classStudentSearch.toLowerCase()))
+                          .map((student) => (
+                            <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-6 py-4 text-xs font-mono font-bold text-slate-600">{student.roll_no}</td>
+                              <td className="px-6 py-4 text-xs font-black text-slate-800">{student.name}</td>
+                              <td className="px-6 py-4 text-xs font-bold text-slate-500">{student.batch}</td>
+                              <td className="px-6 py-4 text-xs font-medium text-slate-500">{student.email || 'N/A'}</td>
+                              <td className="px-6 py-4">
+                                <span className={cn(
+                                  "px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider",
+                                  student.status === 'Active' ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500"
+                                )}>
+                                  {student.status || 'Active'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {allStudentsClassWise.length === 0 && !isFetchingStudents && (
+                <div className="py-12 text-center text-slate-400 bg-slate-50 rounded-3xl border border-slate-100">
+                  <p className="font-bold">No students directory loaded. Select a class/course above and fetch.</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'profile' && (
+          <motion.div 
+            key="profile"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-6"
+          >
+            <div className="bg-white p-8 rounded-[32px] border border-primary/10 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                <div>
+                  <h3 className="text-2xl font-black text-slate-800">Faculty Personal Profile</h3>
+                  <p className="text-slate-500 font-medium text-sm">View or update your personal parameters. Some immutable details must be changed through the HR office.</p>
+                </div>
+                <div className="px-4 py-2 bg-indigo-50 border border-indigo-100 text-indigo-800 text-xs rounded-xl font-bold flex items-center gap-2">
+                  <User className="w-4 h-4 text-indigo-600" />
+                  <span>Logged in as: {user?.email}</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleUpdateProfile} className="space-y-8 font-sans">
+                {/* Photo & Basic Details Header */}
+                <div className="flex items-center gap-6 p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                  <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center font-black text-2xl uppercase">
+                    {profileForm.name ? profileForm.name.slice(0, 2) : 'FC'}
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-black text-slate-800">{profileForm.title || 'Dr.'} {profileForm.name || 'Faculty Member'}</h4>
+                    <p className="text-sm text-slate-500 font-bold">{profileForm.designation || 'Faculty Member'} • {profileForm.branch || 'Academic Department'}</p>
+                    <span className="mt-2 inline-block px-2.5 py-0.5 bg-green-100 text-green-700 text-[10px] font-black uppercase rounded-lg">Official {profileForm.status || 'Active'} Record</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* General Fields */}
+                  <div className="space-y-4">
+                    <h5 className="text-[10px] font-black text-primary uppercase tracking-widest border-b border-primary/10 pb-1">Academic Credentials</h5>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Salutation</label>
+                        <input 
+                          type="text" 
+                          value={profileForm.title || ''} 
+                          onChange={(e) => setProfileForm({ ...profileForm, title: e.target.value })}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/25"
+                          placeholder="Dr. / Mr. / Ms."
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Faculty ID (Read-only)</label>
+                        <input 
+                          type="text" 
+                          value={profileForm.id || ''} 
+                          disabled
+                          className="w-full px-4 py-3 bg-slate-100 border border-slate-100 rounded-xl text-sm font-bold text-slate-400 grayscale cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Full Name</label>
+                      <input 
+                        type="text" 
+                        value={profileForm.name || ''} 
+                        onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/25"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Branch / Division</label>
+                        <input 
+                          type="text" 
+                          value={profileForm.branch || ''} 
+                          onChange={(e) => setProfileForm({ ...profileForm, branch: e.target.value })}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/25"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Designation</label>
+                        <input 
+                          type="text" 
+                          value={profileForm.designation || ''} 
+                          onChange={(e) => setProfileForm({ ...profileForm, designation: e.target.value })}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/25"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contact Fields */}
+                  <div className="space-y-4">
+                    <h5 className="text-[10px] font-black text-primary uppercase tracking-widest border-b border-primary/10 pb-1">Contact Parameters</h5>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Contact Phone</label>
+                      <input 
+                        type="text" 
+                        value={profileForm.phone || ''} 
+                        onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/25"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Personal Email</label>
+                      <input 
+                        type="email" 
+                        value={profileForm.email || ''} 
+                        onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/25"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Blood Group</label>
+                        <input 
+                          type="text" 
+                          value={profileForm.bloodGroup || ''} 
+                          onChange={(e) => setProfileForm({ ...profileForm, bloodGroup: e.target.value })}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/25"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Transport Mode</label>
+                        <input 
+                          type="text" 
+                          value={profileForm.transportMode || ''} 
+                          onChange={(e) => setProfileForm({ ...profileForm, transportMode: e.target.value })}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/25"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Local Address */}
+                  <div className="space-y-4">
+                    <h5 className="text-[10px] font-black text-primary uppercase tracking-widest border-b border-primary/10 pb-1">Resident Address</h5>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Local Address</label>
+                      <textarea 
+                        rows={2}
+                        value={profileForm.address || ''} 
+                        onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/25 resize-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">State</label>
+                        <input 
+                          type="text" 
+                          value={profileForm.state || ''} 
+                          onChange={(e) => setProfileForm({ ...profileForm, state: e.target.value })}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/25"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Pincode</label>
+                        <input 
+                          type="text" 
+                          value={profileForm.pincode || ''} 
+                          onChange={(e) => setProfileForm({ ...profileForm, pincode: e.target.value })}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/25"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bank Details */}
+                  <div className="space-y-4">
+                    <h5 className="text-[10px] font-black text-primary uppercase tracking-widest border-b border-primary/10 pb-1">Salary Bank Account (Confidential)</h5>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Bank Name</label>
+                      <input 
+                        type="text" 
+                        value={profileForm.bankName || ''} 
+                        onChange={(e) => setProfileForm({ ...profileForm, bankName: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/25"
+                        placeholder="State Bank of India / HDFC"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">IFSC Code</label>
+                        <input 
+                          type="text" 
+                          value={profileForm.ifscCode || ''} 
+                          onChange={(e) => setProfileForm({ ...profileForm, ifscCode: e.target.value })}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/25"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Account Number</label>
+                        <input 
+                          type="text" 
+                          value={profileForm.accountNumber || ''} 
+                          onChange={(e) => setProfileForm({ ...profileForm, accountNumber: e.target.value })}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/25"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <button 
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-2xl font-black hover:bg-primary/95 transition-all shadow-xl shadow-primary/25 disabled:opacity-50"
+                  >
+                    <Save className="w-5 h-5" />
+                    {isSubmitting ? 'Updating Profile...' : 'Save Profile Changes'}
+                  </button>
+                </div>
+              </form>
             </div>
           </motion.div>
         )}
@@ -1264,6 +1822,107 @@ export const FacultyPanel: React.FC = () => {
                     className="flex-1 py-4 bg-primary text-white rounded-2xl font-black shadow-xl shadow-primary/20 hover:bg-primary/95 transition-all"
                   >
                     {isSubmitting ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Prepare / Update Syllabus Modal */}
+      <AnimatePresence>
+        {isSyllabusModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSyllabusModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-white w-full max-w-lg rounded-[40px] shadow-2xl p-8"
+            >
+              <button 
+                onClick={() => setIsSyllabusModalOpen(false)}
+                className="absolute top-6 right-6 p-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <h3 className="text-2xl font-black text-slate-800 mb-6">
+                {editingSyllabus ? 'Update Syllabus Unit' : 'Prepare Syllabus Unit'}
+              </h3>
+              
+              <form onSubmit={handleSaveSyllabus} className="space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block px-2">Course / Class</label>
+                    <select 
+                      value={syllabusForm.course_id}
+                      onChange={(e) => setSyllabusForm({...syllabusForm, course_id: e.target.value})}
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="">Select Course</option>
+                      {courses.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="col-span-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block px-2">Unit No</label>
+                      <input 
+                        type="number"
+                        min={1}
+                        value={syllabusForm.unit_number}
+                        onChange={(e) => setSyllabusForm({...syllabusForm, unit_number: Number(e.target.value)})}
+                        className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block px-2">Unit Title</label>
+                      <input 
+                        type="text"
+                        placeholder="e.g. Intro to Arrays"
+                        value={syllabusForm.unit_title}
+                        onChange={(e) => setSyllabusForm({...syllabusForm, unit_title: e.target.value})}
+                        className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block px-2">Description / Topics covered</label>
+                    <textarea 
+                      rows={3}
+                      placeholder="List down core topics or concepts covered in this unit..."
+                      value={syllabusForm.description}
+                      onChange={(e) => setSyllabusForm({...syllabusForm, description: e.target.value})}
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <button 
+                    type="button"
+                    onClick={() => setIsSyllabusModalOpen(false)}
+                    className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black hover:bg-slate-200 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 py-4 bg-primary text-white rounded-2xl font-black shadow-xl shadow-primary/20 hover:bg-primary/95 transition-all"
+                  >
+                    {isSubmitting ? 'Saving...' : 'Save Unit'}
                   </button>
                 </div>
               </form>

@@ -54,7 +54,7 @@ interface SidebarItem {
 }
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
-  { title: 'Dashboard', icon: LayoutDashboard, path: '/', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'FACULTY', 'STUDENT', 'PRINCIPAL', 'ACCOUNTANT', 'LIBRARIAN', 'STAFF'] },
+  { title: 'Dashboard', icon: LayoutDashboard, path: '/', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'FACULTY', 'STUDENT', 'PRINCIPAL', 'ACCOUNTANT', 'STAFF'] },
   { title: 'Faculty Panel', icon: UserCheck, path: '/faculty-panel', roles: ['FACULTY'] },
   { title: 'Student Panel', icon: UserCheck, path: '/student-panel', roles: ['STUDENT'] },
   { title: 'Parent Panel', icon: Heart, path: '/parent-panel', roles: ['PARENT'] },

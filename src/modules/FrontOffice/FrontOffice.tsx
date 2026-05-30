@@ -26,19 +26,38 @@ import {
   Filter,
   CheckCircle2,
   Archive,
-  Inbox
+  Inbox,
+  Key,
+  Copy,
+  Check,
+  Smartphone,
+  Share2
 } from 'lucide-react';
 import Webcam from 'react-webcam';
 import { supabase, testSupabaseConnection } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatDate } from '../../lib/utils';
+import { useAuth } from '../../hooks/useAuth';
 
 export const FrontOffice: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'enquiries' | 'visitors' | 'registration' | 'communication' | 'documents' | 'library'>('enquiries');
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'enquiries' | 'visitors' | 'registration' | 'communication' | 'documents' | 'library' | 'students'>('enquiries');
   const [registrationSubTab, setRegistrationSubTab] = useState<'student' | 'staff'>('student');
   const [enquiries, setEnquiries] = useState<any[]>([]);
   const [visitors, setVisitors] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  
+  // Custom Front Office student details & credentials states
+  const [selectedStudentDetail, setSelectedStudentDetail] = useState<any>(null);
+  const [credentialsStudent, setCredentialsStudent] = useState<any>(null);
+  const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
+  const [fetchedCreds, setFetchedCreds] = useState<{
+    studentId: string;
+    studentPass: string;
+    parentId: string;
+    parentPass: string;
+  } | null>(null);
+  const [copiedType, setCopiedType] = useState<'student' | 'parent' | null>(null);
   const [staff, setStaff] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [libraryBooks, setLibraryBooks] = useState<any[]>([]);
@@ -163,6 +182,41 @@ export const FrontOffice: React.FC = () => {
   const fetchStudents = async () => {
     const { data } = await supabase.from('students').select('*').order('name');
     if (data) setStudents(data);
+  };
+
+  const handleViewCredentials = async (student: any) => {
+    setCredentialsStudent(student);
+    setIsCredentialsModalOpen(true);
+    setFetchedCreds(null);
+    setCopiedType(null);
+    try {
+      const { data: studentCreds } = await supabase
+        .from('user_credentials')
+        .select('password')
+        .eq('id', student.id)
+        .maybeSingle();
+
+      const { data: parentCreds } = await supabase
+        .from('user_credentials')
+        .select('password')
+        .eq('id', `P-${student.id}`)
+        .maybeSingle();
+
+      setFetchedCreds({
+        studentId: student.id,
+        studentPass: studentCreds?.password || '12345',
+        parentId: `P-${student.id}`,
+        parentPass: parentCreds?.password || '12345'
+      });
+    } catch (err) {
+      console.error('Error fetching student credentials:', err);
+      setFetchedCreds({
+        studentId: student.id,
+        studentPass: '12345',
+        parentId: `P-${student.id}`,
+         parentPass: '12345'
+      });
+    }
   };
 
   const fetchStaff = async () => {
@@ -536,6 +590,7 @@ export const FrontOffice: React.FC = () => {
             { id: 'enquiries', label: 'Enquiries', icon: MessageSquare },
             { id: 'visitors', label: 'Visitors', icon: UserCheck },
             { id: 'registration', label: 'Registration', icon: UserPlus },
+            { id: 'students', label: 'Student Details & Credentials', icon: Users },
             { id: 'communication', label: 'Communication', icon: Send },
             { id: 'documents', label: 'Documents', icon: FileText },
             { id: 'library', label: 'Library', icon: Book }
@@ -914,7 +969,7 @@ export const FrontOffice: React.FC = () => {
               )}
             </div>
           </div>
-        ) : activeTab === 'library' && (
+        ) : activeTab === 'library' ? (
           <div className="p-8">
              <div className="flex items-center justify-between mb-8">
               <div>
@@ -1008,8 +1063,414 @@ export const FrontOffice: React.FC = () => {
               </div>
             </div>
           </div>
-        )}
+        ) : activeTab === 'students' ? (
+          <div className="p-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+              <div>
+                <h3 className="text-xl font-black text-slate-800">Student Profiles & Credentials</h3>
+                <p className="text-sm text-slate-500 font-medium mt-0.5">Search students, view administrative details, and share/view portal login credentials.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase bg-slate-150/40 px-3 py-1.5 rounded-lg font-mono">
+                  {students.length} Total Students
+                </span>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50/50 border-b border-slate-100">
+                  <tr>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Student Info</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Course & Batch</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Parent Details</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {students.filter(s => 
+                    (s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (s.id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (s.roll_no || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (s.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (s.phone || '').includes(searchQuery)
+                  ).map((student) => (
+                    <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center font-bold text-sm shrink-0">
+                            {student.name ? student.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : 'ST'}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">{student.name}</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">ID: {student.id}</p>
+                            {student.roll_no && (
+                              <p className="text-[10px] text-primary font-bold uppercase tracking-wider">Roll: {student.roll_no}</p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div>
+                          <p className="text-sm font-bold text-slate-700">{student.course || 'N/A'}</p>
+                          <p className="text-[10px] text-slate-400 font-semibold">{student.branch || 'N/A'} • {student.batch || 'N/A'}</p>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div>
+                          <p className="text-sm font-bold text-slate-700">{student.father_name || student.mother_name || student.parent_name || 'N/A'}</p>
+                          <p className="text-[10px] text-slate-400 font-semibold">{student.parent_phone || 'N/A'}</p>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-700 select-all">{student.phone || 'N/A'}</p>
+                          <p className="text-[10px] text-slate-400 font-semibold select-all leading-tight max-w-[150px] truncate">{student.email || 'N/A'}</p>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleViewCredentials(student)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-650 rounded-xl text-xs font-bold hover:bg-indigo-100 hover:text-indigo-700 transition"
+                            title="Share Credentials"
+                          >
+                            <Key className="w-3.5 h-3.5" />
+                            <span>Share Logins</span>
+                          </button>
+                          <button 
+                            onClick={() => setSelectedStudentDetail(student)}
+                            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                            title="View Full Profile"
+                          >
+                            <IdCard className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {students.filter(s => 
+                    (s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (s.id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (s.roll_no || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (s.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (s.phone || '').includes(searchQuery)
+                  ).length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-8 py-12 text-center text-slate-400 font-bold bg-slate-50/50 italic">
+                        No students found matching your search query.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
       </div>
+
+      {/* Student Details modal */}
+      {selectedStudentDetail && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-white rounded-[32px] border border-slate-100 shadow-xl w-full max-w-4xl overflow-hidden my-auto"
+          >
+            <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between bg-primary/5">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                  <Users className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800">Student Detailed Record</h3>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{selectedStudentDetail.name} • Internal Directory Details</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedStudentDetail(null)} 
+                className="p-3 hover:bg-white rounded-2xl transition shadow-sm border border-slate-100"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* Academic Profile */}
+              <div className="space-y-4 bg-slate-50/80 p-6 rounded-[24px] border border-slate-100">
+                <h4 className="text-xs font-black text-primary uppercase tracking-widest">Academic Record</h4>
+                
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Student ID</span>
+                  <p className="text-sm font-black text-slate-800">{selectedStudentDetail.id}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Roll No</span>
+                  <p className="text-sm font-black text-slate-800">{selectedStudentDetail.roll_no || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Course / Program</span>
+                  <p className="text-sm font-black text-slate-800">{selectedStudentDetail.course || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Year / Semester</span>
+                  <p className="text-sm font-black text-slate-800">{selectedStudentDetail.year || '1st'} / {selectedStudentDetail.semester || '1st Semester'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Batch & Branch</span>
+                  <p className="text-sm font-black text-slate-800">{selectedStudentDetail.batch || 'N/A'} ({selectedStudentDetail.branch || 'N/A'})</p>
+                </div>
+              </div>
+
+              {/* Personal Information */}
+              <div className="space-y-4 bg-slate-50/80 p-6 rounded-[24px] border border-slate-100">
+                <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest">Personal Details</h4>
+                
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Date of Birth</span>
+                  <p className="text-sm font-black text-slate-800">{selectedStudentDetail.dob ? formatDate(selectedStudentDetail.dob) : 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Gender</span>
+                  <p className="text-sm font-black text-slate-800">{selectedStudentDetail.gender || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Blood Group</span>
+                  <p className="text-sm font-black text-slate-800">{selectedStudentDetail.blood_group || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Category</span>
+                  <p className="text-sm font-black text-slate-800">{selectedStudentDetail.category || 'General'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Email Address</span>
+                  <p className="text-sm font-black text-slate-850 break-all">{selectedStudentDetail.email || 'N/A'}</p>
+                </div>
+              </div>
+
+              {/* Parent & Contact Profile */}
+              <div className="space-y-4 bg-slate-50/80 p-6 rounded-[24px] border border-slate-100">
+                <h4 className="text-xs font-black text-emerald-600 uppercase tracking-widest">Guardians & Locations</h4>
+                
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Father Name</span>
+                  <p className="text-sm font-black text-slate-800">{selectedStudentDetail.father_name || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Mother Name</span>
+                  <p className="text-sm font-black text-slate-800">{selectedStudentDetail.mother_name || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Parent Phone</span>
+                  <p className="text-sm font-black text-slate-800">{selectedStudentDetail.parent_phone || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Parent Email</span>
+                  <p className="text-sm font-black text-slate-800">{selectedStudentDetail.parent_email || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Mailing Address</span>
+                  <p className="text-xs font-bold text-slate-600 leading-relaxed max-h-16 overflow-y-auto">{selectedStudentDetail.address || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 md:p-8 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button 
+                onClick={() => {
+                  const student = selectedStudentDetail;
+                  setSelectedStudentDetail(null);
+                  handleViewCredentials(student);
+                }}
+                className="px-6 py-3 bg-indigo-650 text-white rounded-2xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition"
+              >
+                <Key className="w-4 h-4" />
+                View & Share Logins
+              </button>
+              <button 
+                onClick={() => setSelectedStudentDetail(null)}
+                className="px-6 py-3 bg-white text-slate-700 border border-slate-200 rounded-2xl text-sm font-bold hover:bg-slate-50 transition"
+              >
+                Close Record
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Credentials Share Modal */}
+      {isCredentialsModalOpen && credentialsStudent && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-white rounded-[32px] shadow-2xl border border-slate-100 w-full max-w-lg overflow-hidden"
+          >
+            <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between bg-indigo-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
+                  <Key className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-800 text-lg">Portal Login Credentials</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{credentialsStudent.name}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setIsCredentialsModalOpen(false);
+                  setFetchedCreds(null);
+                }} 
+                className="p-2 hover:bg-white rounded-xl transition"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-6 md:p-8 space-y-6">
+              {!fetchedCreds ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-3">
+                  <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest font-mono">Fetching secure credentials...</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Student Account */}
+                  <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3 relative group">
+                    <span className="absolute right-4 top-4 text-[9px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full uppercase tracking-widest">Student Portal</span>
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Student Logins</h4>
+                    
+                    <div className="space-y-2">
+                      <div>
+                        <span className="text-[9px] font-medium text-slate-400 block">Login ID</span>
+                        <div className="flex items-center justify-between gap-2 mt-0.5">
+                          <code className="text-xs font-black text-slate-800 font-mono">{fetchedCreds.studentId}</code>
+                          <button 
+                            onClick={() => {
+                              navigator.clipboard.writeText(fetchedCreds.studentId);
+                              setCopiedType('student');
+                              setTimeout(() => setCopiedType(null), 2000);
+                            }}
+                            className="text-slate-400 hover:text-indigo-600 transition p-1 hover:bg-white rounded-lg"
+                            title="Copy ID"
+                          >
+                            {copiedType === 'student' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-[9px] font-medium text-slate-400 block">Password</span>
+                        <div className="flex items-center justify-between gap-2 mt-0.5">
+                          <code className="text-xs font-black text-slate-800 font-mono">{fetchedCreds.studentPass}</code>
+                          <button 
+                            onClick={() => {
+                              navigator.clipboard.writeText(fetchedCreds.studentPass);
+                              setCopiedType('student-pass');
+                              setTimeout(() => setCopiedType(null), 2000);
+                            }}
+                            className="text-slate-400 hover:text-indigo-600 transition p-1 hover:bg-white rounded-lg"
+                            title="Copy Password"
+                          >
+                            {copiedType === 'student-pass' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Parent Account */}
+                  <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3 relative group">
+                    <span className="absolute right-4 top-4 text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-widest">Parent Portal</span>
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Parent Logins</h4>
+                    
+                    <div className="space-y-2">
+                      <div>
+                        <span className="text-[9px] font-medium text-slate-400 block">Login ID</span>
+                        <div className="flex items-center justify-between gap-2 mt-0.5">
+                          <code className="text-xs font-black text-slate-800 font-mono">{fetchedCreds.parentId}</code>
+                          <button 
+                            onClick={() => {
+                              navigator.clipboard.writeText(fetchedCreds.parentId);
+                              setCopiedType('parent');
+                              setTimeout(() => setCopiedType(null), 2000);
+                            }}
+                            className="text-slate-400 hover:text-indigo-600 transition p-1 hover:bg-white rounded-lg"
+                            title="Copy ID"
+                          >
+                            {copiedType === 'parent' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-[9px] font-medium text-slate-400 block">Password</span>
+                        <div className="flex items-center justify-between gap-2 mt-0.5">
+                          <code className="text-xs font-black text-slate-800 font-mono">{fetchedCreds.parentPass}</code>
+                          <button 
+                            onClick={() => {
+                              navigator.clipboard.writeText(fetchedCreds.parentPass);
+                              setCopiedType('parent-pass');
+                              setTimeout(() => setCopiedType(null), 2000);
+                            }}
+                            className="text-slate-400 hover:text-indigo-600 transition p-1 hover:bg-white rounded-lg"
+                            title="Copy Password"
+                          >
+                            {copiedType === 'parent-pass' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick share actions */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <button 
+                      onClick={() => {
+                        const text = `Hello *${credentialsStudent.name}*,\n\nHere are your login details for the EduNexus College Portal:\n\n*Student Login*:\nID: \`${fetchedCreds.studentId}\`\nPassword: \`${fetchedCreds.studentPass}\`\n\n*Parent Login*:\nID: \`${fetchedCreds.parentId}\`\nPassword: \`${fetchedCreds.parentPass}\`\n\nLink: ${window.location.origin}\n\nDo not share your passwords with anyone.`;
+                        const url = `https://api.whatsapp.com/send?phone=${credentialsStudent.phone || credentialsStudent.parent_phone || ''}&text=${encodeURIComponent(text)}`;
+                        window.open(url, '_blank');
+                      }}
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-green-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-green-600 transition shadow-md shadow-green-500/10"
+                    >
+                      <Smartphone className="w-4 h-4" />
+                      <span>WhatsApp Share</span>
+                    </button>
+
+                    <button 
+                      onClick={() => {
+                        const text = `Hello ${credentialsStudent.name},\n\nHere are your portal login credentials:\n\nStudent Login:\nID: ${fetchedCreds.studentId}\nPassword: ${fetchedCreds.studentPass}\n\nParent Login:\nID: ${fetchedCreds.parentId}\nPassword: ${fetchedCreds.parentPass}\n\nLink: ${window.location.origin}`;
+                        const subject = encodeURIComponent("EduNexus College Portal: Credentials");
+                        const body = encodeURIComponent(text);
+                        window.open(`mailto:${credentialsStudent.email || ''}?subject=${subject}&body=${body}`, '_blank');
+                      }}
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition shadow-md shadow-indigo-600/10"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span>Email Share</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 bg-slate-50 border-t border-slate-150 flex justify-end">
+              <button 
+                onClick={() => {
+                  setIsCredentialsModalOpen(false);
+                  setFetchedCreds(null);
+                }}
+                className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-50 transition"
+              >
+                Done
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* General Modal */}
       <AnimatePresence>
@@ -1448,7 +1909,9 @@ export const FrontOffice: React.FC = () => {
                         >
                           <option value="INFO">Information</option>
                           <option value="ALERT">Important Alert</option>
-                          <option value="REMINDER">Fee Reminder</option>
+                          {user?.role === 'ACCOUNTANT' && (
+                            <option value="REMINDER">Fee Reminder</option>
+                          )}
                         </select>
                       </div>
                       <div className="space-y-2">
