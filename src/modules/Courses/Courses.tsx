@@ -213,6 +213,10 @@ export const Courses: React.FC = () => {
   };
 
   const handleAddCourse = async () => {
+    if (!canManageCourses) {
+      alert('Permission Denied: Only Admins can manage courses.');
+      return;
+    }
     const data: any = {
       name: courseForm.name || '',
       code: courseForm.code || '',
@@ -243,6 +247,10 @@ export const Courses: React.FC = () => {
   };
 
   const handleDeleteCourse = async (id: string) => {
+    if (!canManageCourses) {
+      alert('Permission Denied: Only Admins can delete courses.');
+      return;
+    }
     setDeletingId(id);
     try {
       // 1. Critical blocks: Students and Applications
@@ -402,6 +410,10 @@ export const Courses: React.FC = () => {
   };
 
   const handleAddSlot = async () => {
+    if (!canManageTimetable) {
+      alert('Permission Denied: Only Admins can manage the timetable.');
+      return;
+    }
     const data = {
       course_id: slotForm.course_id || '',
       batch: slotForm.batch || '',
@@ -432,6 +444,10 @@ export const Courses: React.FC = () => {
   };
 
   const handleDeleteSlot = async (id: string) => {
+    if (!canManageTimetable) {
+      alert('Permission Denied: Only Admins can delete timetable slots.');
+      return;
+    }
     if (window.confirm('Are you sure you want to delete this slot?')) {
       const { error } = await supabase.from('timetable').delete().eq('id', id);
       if (!error) fetchData();
@@ -439,6 +455,10 @@ export const Courses: React.FC = () => {
   };
 
   const handleSaveSyllabus = async () => {
+    if (!canManageSyllabus) {
+      alert('Permission Denied: You do not have permission to manage the syllabus.');
+      return;
+    }
     if (!syllabusForm.course_id || !syllabusForm.unit_title || !syllabusForm.unit_number) {
       alert('Please fill in all required fields (Course, Unit Number, and Title)');
       return;
@@ -472,11 +492,19 @@ export const Courses: React.FC = () => {
   };
 
   const handleDeleteSyllabus = async (id: string) => {
+    if (!canManageSyllabus) {
+      alert('Permission Denied: You do not have permission to delete syllabus items.');
+      return;
+    }
     const { error } = await supabase.from('syllabus').delete().eq('id', id);
     if (!error) fetchData();
   };
 
   const handleSaveStudyLog = async () => {
+    if (!canManageStudyLog) {
+      alert('Permission Denied: You do not have permission to manage study logs.');
+      return;
+    }
     if (!studyLogForm.course_id || !studyLogForm.batch) {
       alert('Please select a Course and enter the Batch');
       return;
@@ -513,11 +541,19 @@ export const Courses: React.FC = () => {
   };
 
   const handleDeleteStudyLog = async (id: string) => {
+    if (!canManageStudyLog) {
+      alert('Permission Denied: You do not have permission to delete study logs.');
+      return;
+    }
     const { error } = await supabase.from('study_activities').delete().eq('id', id);
     if (!error) fetchData();
   };
 
   const generateAITimetable = () => {
+    if (!canManageTimetable) {
+      alert('Permission Denied: Only Admins can plan timetables.');
+      return;
+    }
     setIsGeneratingAI(true);
     setTimeout(async () => {
       const subjects = ['Data Structures', 'Algorithms', 'Operating Systems', 'Database Systems', 'Computer Networks', 'Software Engineering'];
@@ -580,11 +616,29 @@ export const Courses: React.FC = () => {
   );
 
     const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'COLLEGE_ADMIN' || user?.role === 'PRINCIPAL';
-    const isTeacher = user?.role === 'FACULTY';
-    const canManage = isAdmin || isTeacher;
+    const isFaculty = user?.role === 'FACULTY';
+    const canManageCourses = isAdmin;
+    const canManageTimetable = isAdmin;
+    const canManageSyllabus = isAdmin || isFaculty;
+    const canManageStudyLog = isAdmin || isFaculty;
 
     return (
     <div className="space-y-8">
+      {!isAdmin && (
+        <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-amber-800">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-6 h-6 text-amber-600 shrink-0" />
+            <div>
+              <p className="text-sm font-black">Institutional Academic Catalog</p>
+              {isFaculty ? (
+                <p className="text-xs font-bold text-amber-700 mt-0.5">Under institutional guidelines, Faculty can add, edit, or delete syllabus items and study logs. Core courses and timetables are managed by administrators.</p>
+              ) : (
+                <p className="text-xs font-bold text-amber-700 mt-0.5">You have view-only access. Full administrative permissions are required to add, edit, or delete course configurations, timetables, syllabuses, and study logs.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Database Connection Warning */}
       {!dbStatus.connected && (
         <motion.div 
@@ -613,72 +667,74 @@ export const Courses: React.FC = () => {
           <p className="text-slate-500">Manage academic courses and plan time tables.</p>
         </div>
         <div className="flex items-center gap-3">
-          {canManage && (
-            <>
-              {activeTab === 'courses' ? (
-                <button 
-                  onClick={() => {
-                    setEditingCourse(null);
-                    setCourseForm({});
-                    setIsCourseModalOpen(true);
-                  }}
-                  className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add New Course
-                </button>
-              ) : activeTab === 'timetable' ? (
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={generateAITimetable}
-                    disabled={isGeneratingAI}
-                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50"
-                  >
-                    {isGeneratingAI ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <Sparkles className="w-5 h-5" />
-                    )}
-                    AI Planner
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setEditingSlot(null);
-                      setSlotForm({});
-                      setIsTimetableModalOpen(true);
-                    }}
-                    className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
-                  >
-                    <Plus className="w-5 h-5" />
-                    Add Slot
-                  </button>
-                </div>
-              ) : activeTab === 'syllabus' ? (
-                <button 
-                  onClick={() => {
-                    setEditingSyllabus(null);
-                    setSyllabusForm({});
-                    setIsSyllabusModalOpen(true);
-                  }}
-                  className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add Syllabus Item
-                </button>
-              ) : (
-                <button 
-                  onClick={() => {
-                    setEditingStudyLog(null);
-                    setStudyLogForm({ activities: ['', '', '', '', ''] });
-                    setIsStudyLogModalOpen(true);
-                  }}
-                  className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
-                >
-                  <Plus className="w-5 h-5" />
-                  Log Study Activity
-                </button>
-              )}
-            </>
+          {activeTab === 'courses' && canManageCourses && (
+            <button 
+              onClick={() => {
+                setEditingCourse(null);
+                setCourseForm({});
+                setIsCourseModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+            >
+              <Plus className="w-5 h-5" />
+              Add New Course
+            </button>
+          )}
+
+          {activeTab === 'timetable' && canManageTimetable && (
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={generateAITimetable}
+                disabled={isGeneratingAI}
+                className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50"
+              >
+                {isGeneratingAI ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Sparkles className="w-5 h-5" />
+                )}
+                AI Planner
+              </button>
+              <button 
+                onClick={() => {
+                  setEditingSlot(null);
+                  setSlotForm({});
+                  setIsTimetableModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+              >
+                <Plus className="w-5 h-5" />
+                Add Slot
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'syllabus' && canManageSyllabus && (
+            <button 
+              onClick={() => {
+                setEditingSyllabus(null);
+                setSyllabusForm({});
+                setIsSyllabusModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+            >
+              <Plus className="w-5 h-5" />
+              Add Syllabus Item
+            </button>
+          )}
+
+          {activeTab === 'studylog' && canManageStudyLog && (
+            <button 
+              onClick={() => {
+                setEditingStudyLog(null);
+                setStudyLogForm({ activities: ['', '', '', '', ''] });
+                setIsStudyLogModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+            >
+              <Plus className="w-5 h-5" />
+              Log Study Activity
+            </button>
           )}
         </div>
       </div>
@@ -775,7 +831,7 @@ export const Courses: React.FC = () => {
                     <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
                       <BookOpen className="w-6 h-6" />
                     </div>
-                    {canManage && (
+                    {canManageCourses && (
                       <div className="flex items-center gap-1">
                         <button 
                           onClick={() => {
@@ -948,7 +1004,7 @@ export const Courses: React.FC = () => {
                                             "text-primary"
                                           )}>{s.subject}</p>
                                         </div>
-                                        {canManage && (
+                                        {canManageTimetable && (
                                           <div className="flex items-center gap-1 opacity-0 group-hover/slot:opacity-100 transition-opacity">
                                             <button 
                                               onClick={(e) => {
@@ -1037,7 +1093,7 @@ export const Courses: React.FC = () => {
                                 <h4 className="font-bold text-slate-800">{item.unit_title}</h4>
                                 <p className="text-sm text-slate-500 mt-1">{item.description}</p>
                               </div>
-                              {canManage && (
+                              {canManageSyllabus && (
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <button 
                                     onClick={() => {
@@ -1126,7 +1182,7 @@ export const Courses: React.FC = () => {
                         >
                           <MessageSquare className="w-4 h-4" />
                         </button>
-                        {canManage && (
+                        {canManageStudyLog && (
                           <>
                             <button 
                               onClick={() => {

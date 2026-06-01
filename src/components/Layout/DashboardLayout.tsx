@@ -65,7 +65,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { title: 'Faculty', icon: UserCheck, path: '/faculty', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'STAFF'] },
   { title: 'Parents', icon: Heart, path: '/parents', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'STAFF'] },
   { title: 'Communication', icon: Megaphone, path: '/communication', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'FACULTY'] },
-  { title: 'Courses', icon: BookOpen, path: '/courses', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'FACULTY'] },
+  { title: 'Courses', icon: BookOpen, path: '/courses', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'FACULTY', 'STAFF'] },
   { title: 'Library', icon: Library, path: '/library', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'FACULTY', 'LIBRARIAN', 'STAFF'] },
   { title: 'Attendance', icon: ClipboardList, path: '/attendance', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'FACULTY'] },
   { title: 'Exams', icon: FileText, path: '/exams', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'PRINCIPAL', 'FACULTY'] },

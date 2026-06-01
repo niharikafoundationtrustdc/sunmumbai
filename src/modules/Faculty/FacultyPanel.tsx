@@ -133,6 +133,8 @@ export const FacultyPanel: React.FC = () => {
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSubject, setSelectedSubject] = useState<string>('General');
   const [selectedSection, setSelectedSection] = useState<string>('A');
+  const [attendanceSearch, setAttendanceSearch] = useState<string>('');
+  const [attendanceFilter, setAttendanceFilter] = useState<'all' | 'Present' | 'Absent' | 'Late'>('all');
 
   // Form State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -764,6 +766,13 @@ export const FacultyPanel: React.FC = () => {
     );
   }
 
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = student.name?.toLowerCase().includes(attendanceSearch.toLowerCase()) || 
+      student.roll_no?.toLowerCase().includes(attendanceSearch.toLowerCase());
+    const matchesFilter = attendanceFilter === 'all' || student.attendance_status === attendanceFilter;
+    return matchesSearch && matchesFilter;
+  });
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -1051,14 +1060,25 @@ export const FacultyPanel: React.FC = () => {
 
             {students.length > 0 && (
               <div className="bg-white rounded-[32px] border border-primary/10 shadow-sm overflow-hidden">
-                <div className="p-8 border-b border-slate-100 flex items-center justify-between">
-                  <h3 className="text-xl font-black text-slate-800">Mark Attendance</h3>
-                  <div className="flex items-center gap-4">
+                <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800">Mark Attendance</h3>
+                    <p className="text-xs text-slate-400 mt-1 font-semibold">
+                      Showing {filteredStudents.length} of {students.length} students
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-4">
                     <button 
                       onClick={() => setStudents(prev => prev.map(s => ({ ...s, attendance_status: 'Present' })))}
                       className="text-xs font-bold text-emerald-600 hover:underline"
                     >
-                      Mark All Present
+                      All Present
+                    </button>
+                    <button 
+                      onClick={() => setStudents(prev => prev.map(s => ({ ...s, attendance_status: 'Absent' })))}
+                      className="text-xs font-bold text-rose-600 hover:underline"
+                    >
+                      All Absent
                     </button>
                     <button 
                       onClick={handleExportAttendance}
@@ -1076,6 +1096,59 @@ export const FacultyPanel: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Search & Filter Toolbar */}
+                <div className="px-8 py-4 bg-slate-50 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input 
+                      type="text"
+                      placeholder="Search students by name or roll number..."
+                      value={attendanceSearch}
+                      onChange={(e) => setAttendanceSearch(e.target.value)}
+                      className="w-full pl-9 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                    {attendanceSearch && (
+                      <button 
+                        onClick={() => setAttendanceSearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest mr-2">Status filter:</span>
+                    {(['all', 'Present', 'Absent', 'Late'] as const).map((filterVal) => {
+                      const count = students.filter(s => filterVal === 'all' || s.attendance_status === filterVal).length;
+                      return (
+                        <button
+                          key={filterVal}
+                          onClick={() => setAttendanceFilter(filterVal)}
+                          className={cn(
+                            "px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5",
+                            attendanceFilter === filterVal
+                              ? "bg-primary text-white shadow-sm shadow-primary/10"
+                              : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                          )}
+                        >
+                          <Filter className="w-3 h-3" />
+                          <span className="capitalize">{filterVal === 'all' ? 'All' : filterVal}</span>
+                          <span className={cn(
+                            "px-1.5 py-0.5 rounded-md text-[10px]",
+                            attendanceFilter === filterVal
+                              ? "bg-white/20 text-white"
+                              : "bg-slate-100 text-slate-500"
+                          )}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
@@ -1086,7 +1159,7 @@ export const FacultyPanel: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {students.map((student, i) => (
+                      {filteredStudents.map((student, i) => (
                         <tr key={student.id || `student-${i}`} className="hover:bg-primary/5 transition-colors">
                           <td className="px-8 py-5 text-sm font-mono font-bold text-slate-600">{student.roll_no}</td>
                           <td className="px-8 py-5 text-sm font-black text-slate-800">{student.name}</td>
@@ -1110,6 +1183,13 @@ export const FacultyPanel: React.FC = () => {
                           </td>
                         </tr>
                       ))}
+                      {filteredStudents.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="px-8 py-12 text-center text-slate-400 font-bold">
+                            No students match your search/filter criteria.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

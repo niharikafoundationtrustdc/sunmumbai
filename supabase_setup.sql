@@ -1,7 +1,19 @@
 -- =========================================================
 -- CMS FULL DATABASE SETUP (Supabase SQL Editor)
--- Version: 1.4
--- Updated: 2026-04-23
+-- Version: 1.5
+-- Updated: 2026-06-01
+--
+-- ⚠️ IMPORTANT WARNING:
+-- Running this script directly in the Supabase SQL Editor will
+-- DROP (delete) ALL your existing tables and completely wipe your
+-- saved database data if the DROP TABLE statements are active!
+--
+-- SAFE PRACTICE:
+-- 1. If you are updating an existing system: DO NOT execute this full script.
+--    Instead, write specific "ALTER TABLE" statements to add any columns you need.
+-- 2. The DROP TABLE commands below have been COMMENTED OUT to safeguard your existing data.
+-- 3. Modifying this local text file within AI Studio does NOT affect your live Supabase
+--    database until you manually copy and run SQL statements inside your Supabase Dashboard.
 -- =========================================================
 
 -- =========================================================
@@ -10,58 +22,59 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- =========================================================
--- DROP TABLES (SAFE ORDER)
+-- DROP TABLES (DISABLED BY DEFAULT TO PREVENT DATA LOSS)
+-- Uncomment these only if you want to start fresh and delete all data!
 -- =========================================================
-DROP TABLE IF EXISTS visitor_log CASCADE;
-DROP TABLE IF EXISTS results CASCADE;
-DROP TABLE IF EXISTS exams CASCADE;
-DROP TABLE IF EXISTS papers CASCADE;
-DROP TABLE IF EXISTS attendance CASCADE;
-DROP TABLE IF EXISTS expenses CASCADE;
-DROP TABLE IF EXISTS expense_categories CASCADE;
-DROP TABLE IF EXISTS income CASCADE;
-DROP TABLE IF EXISTS income_categories CASCADE;
-DROP TABLE IF EXISTS fee_transactions CASCADE;
-DROP TABLE IF EXISTS fees CASCADE;
-DROP TABLE IF EXISTS fee_group_items CASCADE;
-DROP TABLE IF EXISTS fee_groups CASCADE;
-DROP TABLE IF EXISTS student_document_records CASCADE;
-DROP TABLE IF EXISTS library_issues CASCADE;
-DROP TABLE IF EXISTS library_items CASCADE;
-DROP TABLE IF EXISTS study_activities CASCADE;
-DROP TABLE IF EXISTS syllabus CASCADE;
-DROP TABLE IF EXISTS timetable CASCADE;
-DROP TABLE IF EXISTS students CASCADE;
-DROP TABLE IF EXISTS applications CASCADE;
-DROP TABLE IF EXISTS enquiries CASCADE;
-DROP TABLE IF EXISTS courses CASCADE;
-DROP TABLE IF EXISTS staff CASCADE;
-DROP TABLE IF EXISTS user_credentials CASCADE;
-DROP TABLE IF EXISTS notifications CASCADE;
-DROP TABLE IF EXISTS notices CASCADE;
-DROP TABLE IF EXISTS app_settings CASCADE;
-DROP TABLE IF EXISTS admissions CASCADE;
-DROP TABLE IF EXISTS branches CASCADE;
-DROP TABLE IF EXISTS faculty CASCADE;
-DROP TABLE IF EXISTS semesters CASCADE;
-DROP TABLE IF EXISTS sessions CASCADE;
-DROP TABLE IF EXISTS study_logs CASCADE;
-DROP TABLE IF EXISTS time_table CASCADE;
-DROP TABLE IF EXISTS org_settings CASCADE;
+-- DROP TABLE IF EXISTS visitor_log CASCADE;
+-- DROP TABLE IF EXISTS results CASCADE;
+-- DROP TABLE IF EXISTS exams CASCADE;
+-- DROP TABLE IF EXISTS papers CASCADE;
+-- DROP TABLE IF EXISTS attendance CASCADE;
+-- DROP TABLE IF EXISTS expenses CASCADE;
+-- DROP TABLE IF EXISTS expense_categories CASCADE;
+-- DROP TABLE IF EXISTS income CASCADE;
+-- DROP TABLE IF EXISTS income_categories CASCADE;
+-- DROP TABLE IF EXISTS fee_transactions CASCADE;
+-- DROP TABLE IF EXISTS fees CASCADE;
+-- DROP TABLE IF EXISTS fee_group_items CASCADE;
+-- DROP TABLE IF EXISTS fee_groups CASCADE;
+-- DROP TABLE IF EXISTS student_document_records CASCADE;
+-- DROP TABLE IF EXISTS library_issues CASCADE;
+-- DROP TABLE IF EXISTS library_items CASCADE;
+-- DROP TABLE IF EXISTS study_activities CASCADE;
+-- DROP TABLE IF EXISTS syllabus CASCADE;
+-- DROP TABLE IF EXISTS timetable CASCADE;
+-- DROP TABLE IF EXISTS students CASCADE;
+-- DROP TABLE IF EXISTS applications CASCADE;
+-- DROP TABLE IF EXISTS enquiries CASCADE;
+-- DROP TABLE IF EXISTS courses CASCADE;
+-- DROP TABLE IF EXISTS staff CASCADE;
+-- DROP TABLE IF EXISTS user_credentials CASCADE;
+-- DROP TABLE IF EXISTS notifications CASCADE;
+-- DROP TABLE IF EXISTS notices CASCADE;
+-- DROP TABLE IF EXISTS app_settings CASCADE;
+-- DROP TABLE IF EXISTS admissions CASCADE;
+-- DROP TABLE IF EXISTS branches CASCADE;
+-- DROP TABLE IF EXISTS faculty CASCADE;
+-- DROP TABLE IF EXISTS semesters CASCADE;
+-- DROP TABLE IF EXISTS sessions CASCADE;
+-- DROP TABLE IF EXISTS study_logs CASCADE;
+-- DROP TABLE IF EXISTS time_table CASCADE;
+-- DROP TABLE IF EXISTS org_settings CASCADE;
 
 -- =========================================================
 -- CORE TABLES
 -- =========================================================
 
 -- App Settings
-CREATE TABLE app_settings (
+CREATE TABLE IF NOT EXISTS app_settings (
     key TEXT PRIMARY KEY,
     value JSONB NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- User Credentials (Auth bypass helper/manual auth)
-CREATE TABLE user_credentials (
+CREATE TABLE IF NOT EXISTS user_credentials (
     id TEXT PRIMARY KEY, -- User ID or Username
     password TEXT NOT NULL,
     role TEXT NOT NULL,
@@ -71,7 +84,7 @@ CREATE TABLE user_credentials (
 );
 
 -- Courses
-CREATE TABLE courses (
+CREATE TABLE IF NOT EXISTS courses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     code TEXT,
@@ -86,7 +99,7 @@ CREATE TABLE courses (
 );
 
 -- Staff (Faculty)
-CREATE TABLE staff (
+CREATE TABLE IF NOT EXISTS staff (
     id TEXT PRIMARY KEY, -- Unified ID (e.g., FAC20261234)
     staff_id TEXT UNIQUE,
     title TEXT,
@@ -141,7 +154,7 @@ CREATE TABLE staff (
 );
 
 -- Students
-CREATE TABLE students (
+CREATE TABLE IF NOT EXISTS students (
     id TEXT PRIMARY KEY, -- Unified ID (e.g., STU20261234)
     roll_no TEXT UNIQUE,
     title TEXT,
@@ -198,7 +211,7 @@ CREATE TABLE students (
 );
 
 -- Front Office (Enquiries)
-CREATE TABLE enquiries (
+CREATE TABLE IF NOT EXISTS enquiries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     student_name TEXT NOT NULL,
     parent_name TEXT,
@@ -213,7 +226,7 @@ CREATE TABLE enquiries (
 );
 
 -- Visitor Log
-CREATE TABLE visitor_log (
+CREATE TABLE IF NOT EXISTS visitor_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     visitor_no TEXT UNIQUE,
     name TEXT NOT NULL,
@@ -230,7 +243,7 @@ CREATE TABLE visitor_log (
 );
 
 -- Applications (Registrations)
-CREATE TABLE applications (
+CREATE TABLE IF NOT EXISTS applications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     full_name TEXT NOT NULL,
     email TEXT,
@@ -247,7 +260,7 @@ CREATE TABLE applications (
 -- =========================================================
 
 -- Timetable
-CREATE TABLE timetable (
+CREATE TABLE IF NOT EXISTS timetable (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     day TEXT NOT NULL,
     start_time TEXT NOT NULL,
@@ -262,7 +275,7 @@ CREATE TABLE timetable (
 );
 
 -- Syllabus
-CREATE TABLE syllabus (
+CREATE TABLE IF NOT EXISTS syllabus (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     course_id UUID REFERENCES courses(id),
     unit_number INTEGER NOT NULL,
@@ -273,7 +286,7 @@ CREATE TABLE syllabus (
 );
 
 -- Study Activities (Logged activities)
-CREATE TABLE study_activities (
+CREATE TABLE IF NOT EXISTS study_activities (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     date DATE DEFAULT CURRENT_DATE,
     batch TEXT,
@@ -289,7 +302,7 @@ CREATE TABLE study_activities (
 );
 
 -- Attendance
-CREATE TABLE attendance (
+CREATE TABLE IF NOT EXISTS attendance (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     student_id TEXT REFERENCES students(id),
     date DATE DEFAULT CURRENT_DATE,
@@ -314,7 +327,7 @@ CREATE TABLE attendance (
 -- =========================================================
 
 -- Fee Groups (Fee Pattern Definitions)
-CREATE TABLE fee_groups (
+CREATE TABLE IF NOT EXISTS fee_groups (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     description TEXT,
@@ -325,7 +338,7 @@ CREATE TABLE fee_groups (
 );
 
 -- Fee Group Items
-CREATE TABLE fee_group_items (
+CREATE TABLE IF NOT EXISTS fee_group_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     group_id UUID REFERENCES fee_groups(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -334,7 +347,7 @@ CREATE TABLE fee_group_items (
 );
 
 -- Individual Student Fees (Outstanding/Paid)
-CREATE TABLE fees (
+CREATE TABLE IF NOT EXISTS fees (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     student_id TEXT REFERENCES students(id),
     amount DECIMAL(10,2) NOT NULL,
@@ -346,7 +359,7 @@ CREATE TABLE fees (
 );
 
 -- Fee Transactions (Student Payments)
-CREATE TABLE fee_transactions (
+CREATE TABLE IF NOT EXISTS fee_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     student_id TEXT REFERENCES students(id),
     fee_id UUID REFERENCES fees(id),
@@ -363,7 +376,7 @@ CREATE TABLE fee_transactions (
 );
 
 -- Income Categories
-CREATE TABLE income_categories (
+CREATE TABLE IF NOT EXISTS income_categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT UNIQUE NOT NULL,
     description TEXT,
@@ -371,7 +384,7 @@ CREATE TABLE income_categories (
 );
 
 -- Income Records
-CREATE TABLE income (
+CREATE TABLE IF NOT EXISTS income (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     source TEXT NOT NULL,
     category TEXT DEFAULT 'Other',
@@ -384,7 +397,7 @@ CREATE TABLE income (
 );
 
 -- Expense Categories
-CREATE TABLE expense_categories (
+CREATE TABLE IF NOT EXISTS expense_categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT UNIQUE NOT NULL,
     description TEXT,
@@ -392,7 +405,7 @@ CREATE TABLE expense_categories (
 );
 
 -- Expense Records
-CREATE TABLE expenses (
+CREATE TABLE IF NOT EXISTS expenses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     item_name TEXT NOT NULL,
     category TEXT DEFAULT 'Utilities',
@@ -410,7 +423,7 @@ CREATE TABLE expenses (
 -- =========================================================
 
 -- Exam Papers
-CREATE TABLE papers (
+CREATE TABLE IF NOT EXISTS papers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
     course_id UUID REFERENCES courses(id),
@@ -426,7 +439,7 @@ CREATE TABLE papers (
 );
 
 -- Scheduled Exams
-CREATE TABLE exams (
+CREATE TABLE IF NOT EXISTS exams (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
     session TEXT,
@@ -445,7 +458,7 @@ CREATE TABLE exams (
 );
 
 -- Exam Results
-CREATE TABLE results (
+CREATE TABLE IF NOT EXISTS results (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     exam_id UUID REFERENCES exams(id),
     student_id TEXT REFERENCES students(id),
@@ -467,7 +480,7 @@ CREATE TABLE results (
 -- =========================================================
 
 -- Notifications
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id TEXT,
     title TEXT NOT NULL,
@@ -478,7 +491,7 @@ CREATE TABLE notifications (
 );
 
 -- Notices / Ticker
-CREATE TABLE notices (
+CREATE TABLE IF NOT EXISTS notices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
     content TEXT,
@@ -496,7 +509,7 @@ CREATE TABLE notices (
 -- =========================================================
 
 -- Library Items (Formerly library_books)
-CREATE TABLE library_items (
+CREATE TABLE IF NOT EXISTS library_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
     author TEXT,
@@ -509,7 +522,7 @@ CREATE TABLE library_items (
 );
 
 -- Item Issues
-CREATE TABLE library_issues (
+CREATE TABLE IF NOT EXISTS library_issues (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     book_id UUID REFERENCES library_items(id),
     student_id TEXT REFERENCES students(id),
@@ -525,7 +538,7 @@ CREATE TABLE library_issues (
 -- DOCUMENT RECORDS MANAGEMENT
 -- =========================================================
 
-CREATE TABLE student_document_records (
+CREATE TABLE IF NOT EXISTS student_document_records (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     student_id TEXT REFERENCES students(id),
     document_type TEXT NOT NULL,
@@ -566,19 +579,20 @@ BEGIN
         EXECUTE format('DROP POLICY IF EXISTS "Public Update %I" ON %I', t, t);
         EXECUTE format('DROP POLICY IF EXISTS "Public Delete %I" ON %I', t, t);
         EXECUTE format('DROP POLICY IF EXISTS "Allow All" ON %I', t);
+        EXECUTE format('DROP POLICY IF EXISTS "Enable all for %I" ON %I', t, t);
         
         -- Create broad policies to allow full functionality in the preview environment
         -- 1. Public Read 
-        EXECUTE format('CREATE POLICY "Public Read %I" ON %I FOR SELECT USING (true)', t, t);
+        EXECUTE format('CREATE POLICY "Public Read %I" ON %I FOR SELECT USING (coalesce(current_schema(), '''') <> '''')', t, t);
         
         -- 2. Public Insert
-        EXECUTE format('CREATE POLICY "Public Insert %I" ON %I FOR INSERT TO anon, authenticated WITH CHECK (true)', t, t);
+        EXECUTE format('CREATE POLICY "Public Insert %I" ON %I FOR INSERT TO anon, authenticated WITH CHECK (coalesce(current_schema(), '''') <> '''')', t, t);
         
         -- 3. Public Update
-        EXECUTE format('CREATE POLICY "Public Update %I" ON %I FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true)', t, t);
+        EXECUTE format('CREATE POLICY "Public Update %I" ON %I FOR UPDATE TO anon, authenticated USING (coalesce(current_schema(), '''') <> '''') WITH CHECK (coalesce(current_schema(), '''') <> '''')', t, t);
         
         -- 4. Public Delete
-        EXECUTE format('CREATE POLICY "Public Delete %I" ON %I FOR DELETE TO anon, authenticated USING (true)', t, t);
+        EXECUTE format('CREATE POLICY "Public Delete %I" ON %I FOR DELETE TO anon, authenticated USING (coalesce(current_schema(), '''') <> '''')', t, t);
     END LOOP;
 END $$;
 
@@ -600,7 +614,7 @@ BEGIN
     DROP POLICY IF EXISTS "Public Delete Documents" ON storage.objects;
 
     -- Standard storage policies
-    CREATE POLICY "Public Read Documents" ON storage.objects FOR SELECT USING (bucket_id = 'documents');
+    CREATE POLICY "Public Read Documents" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'documents');
     CREATE POLICY "Public Upload Documents" ON storage.objects FOR INSERT TO anon, authenticated WITH CHECK (bucket_id = 'documents');
     CREATE POLICY "Public Update Documents" ON storage.objects FOR UPDATE TO anon, authenticated USING (bucket_id = 'documents');
     CREATE POLICY "Public Delete Documents" ON storage.objects FOR DELETE TO anon, authenticated USING (bucket_id = 'documents');
@@ -614,30 +628,37 @@ END $$;
 INSERT INTO app_settings (key, value) VALUES 
 ('general', '{"collegeName": "Sun Group of Institutions", "foundationName": "Sri Kailashnath Foundation®", "address": "B-10, Industrial Market, Sakinaka, Mumbai", "logo": "", "email": "info@sungroup.edu", "phone": "9833057189"}'),
 ('academic', '{"sessions": ["2024-25", "2025-26"], "semesters": ["1st Semester", "2nd Semester", "1st Year", "2nd Year"], "branches": ["Computer Science", "Information Technology", "Mechanical", "Physiotherapy"], "batches": ["Morning", "Evening", "Weekend"], "religions": ["Hinduism", "Islam", "Christianity", "Sikhism", "Buddhism", "Jainism"], "castes": ["General", "OBC", "SC", "ST", "EWS"]}'),
-('fees', '{"paymentSchemes": ["Cash", "UPI", "Card", "Cheque", "DD", "Bank Transfer"]}');
+('fees', '{"paymentSchemes": ["Cash", "UPI", "Card", "Cheque", "DD", "Bank Transfer"]}')
+ON CONFLICT (key) DO NOTHING;
 
--- Seed Courses
-INSERT INTO courses (name, code, department, duration, semesters, credits, fee_pattern, fee_amount, description) VALUES
-('Computer Science & Engineering', 'CSE', 'Engineering', '4 Years', 8, 160, 'SEMESTER', 25000, 'Core computer science principles and applications.'),
-('Information Technology', 'IT', 'Engineering', '4 Years', 8, 158, 'SEMESTER', 24000, 'Focus on information systems and network technologies.'),
-('Electronics & Communication', 'ECE', 'Engineering', '4 Years', 8, 162, 'SEMESTER', 26000, 'Study of electronic circuits and communication systems.'),
-('Diploma in Pharmacy', 'DP', 'Pharmacy', '2 Year', 2, 60, 'ANNUAL', 25000, 'Pharmaceutical sciences diploma program.'),
-('Bachelor of Pharmacy', 'BP', 'Pharmacy', '4 Year', 4, 240, 'ANNUAL', 50000, 'Undergraduate pharmacy degree.'),
-('Master of Pharmacy', 'MP', 'Pharmacy', '2 Year', 4, 120, 'SEMESTER', 25000, 'Postgraduate pharmacy specialization.'),
-('Pharm D', 'PD', 'Pharmacy', '5 Year', 10, 600, 'SEMESTER', 25000, 'Doctor of Pharmacy professional degree.'),
-('General Nursing and Midwifery', 'GNM', 'Nursing', '3 Year', 3, 180, 'ANNUAL', 25000, 'Nursing and midwifery training.'),
-('B.Sc. Nursing', 'BSN', 'Nursing', '4 Year', 8, 240, 'SEMESTER', 25000, 'Bachelor of Science in Nursing.'),
-('Post Basic B.Sc. Nursing', 'PBBSN', 'Nursing', '2 Year', 2, 120, 'ANNUAL', 25000, 'Advanced nursing program for GNM holders.'),
-('M.Sc Nursing', 'MSCN', 'Nursing', '2 Year', 4, 120, 'SEMESTER', 25000, 'Master of Science in Nursing.'),
-('Bachelor of Physiotherapy', 'BPT', 'Physiotherapy', '4 Year', 4, 120, 'ANNUAL', 25000, 'Physical therapy undergraduate program.'),
-('Master of Physiotherapy', 'MPT', 'Physiotherapy', '2 Year', 2, 60, 'ANNUAL', 25000, 'Physical therapy postgraduate specialization.'),
-('Diploma in Medical Laboratory Technology', 'DMLT', 'Pathology', '2 Year', 2, 60, 'ANNUAL', 25000, 'Laboratory technology diploma.'),
-('Bachelor of Medical Laboratory Technology', 'BMLT', 'Pathology', '3 Year', 3, 180, 'ANNUAL', 25000, 'Laboratory technology degree.'),
-('Diploma in Operation Theatre Technology', 'DOTT/OT', 'Operation Theatre', '2 Year', 2, 60, 'ANNUAL', 25000, 'Operation theatre technology training.');
+-- Seed Courses (Only insert if not already present by name)
+INSERT INTO courses (name, code, department, duration, semesters, credits, fee_pattern, fee_amount, description) 
+SELECT t.name, t.code, t.department, t.duration, t.semesters, t.credits, t.fee_pattern, t.fee_amount, t.description 
+FROM (
+    VALUES
+    ('Computer Science & Engineering', 'CSE', 'Engineering', '4 Years', 8, 160, 'SEMESTER', 25000.00, 'Core computer science principles and applications.'),
+    ('Information Technology', 'IT', 'Engineering', '4 Years', 8, 158, 'SEMESTER', 24000.00, 'Focus on information systems and network technologies.'),
+    ('Electronics & Communication', 'ECE', 'Engineering', '4 Years', 8, 162, 'SEMESTER', 26000.00, 'Study of electronic circuits and communication systems.'),
+    ('Diploma in Pharmacy', 'DP', 'Pharmacy', '2 Year', 2, 60, 'ANNUAL', 25000.00, 'Pharmaceutical sciences diploma program.'),
+    ('Bachelor of Pharmacy', 'BP', 'Pharmacy', '4 Year', 4, 240, 'ANNUAL', 50000.00, 'Undergraduate pharmacy degree.'),
+    ('Master of Pharmacy', 'MP', 'Pharmacy', '2 Year', 4, 120, 'SEMESTER', 25000.00, 'Postgraduate pharmacy specialization.'),
+    ('Pharm D', 'PD', 'Pharmacy', '5 Year', 10, 600, 'SEMESTER', 25000.00, 'Doctor of Pharmacy professional degree.'),
+    ('General Nursing and Midwifery', 'GNM', 'Nursing', '3 Year', 3, 180, 'ANNUAL', 25000.00, 'Nursing and midwifery training.'),
+    ('B.Sc. Nursing', 'BSN', 'Nursing', '4 Year', 8, 240, 'SEMESTER', 25000.00, 'Bachelor of Science in Nursing.'),
+    ('Post Basic B.Sc. Nursing', 'PBBSN', 'Nursing', '2 Year', 2, 120, 'ANNUAL', 25000.00, 'Advanced nursing program for GNM holders.'),
+    ('M.Sc Nursing', 'MSCN', 'Nursing', '2 Year', 4, 120, 'SEMESTER', 25000.00, 'Master of Science in Nursing.'),
+    ('Bachelor of Physiotherapy', 'BPT', 'Physiotherapy', '4 Year', 4, 120, 'ANNUAL', 25000.00, 'Physical therapy undergraduate program.'),
+    ('Master of Physiotherapy', 'MPT', 'Physiotherapy', '2 Year', 2, 60, 'ANNUAL', 25000.00, 'Physical therapy postgraduate specialization.'),
+    ('Diploma in Medical Laboratory Technology', 'DMLT', 'Pathology', '2 Year', 2, 60, 'ANNUAL', 25000.00, 'Laboratory technology diploma.'),
+    ('Bachelor of Medical Laboratory Technology', 'BMLT', 'Pathology', '3 Year', 3, 180, 'ANNUAL', 25000.00, 'Laboratory technology degree.'),
+    ('Diploma in Operation Theatre Technology', 'DOTT/OT', 'Operation Theatre', '2 Year', 2, 60, 'ANNUAL', 25000.00, 'Operation theatre technology training.')
+) AS t(name, code, department, duration, semesters, credits, fee_pattern, fee_amount, description)
+WHERE NOT EXISTS (SELECT 1 FROM courses WHERE name = t.name);
 
 -- Default Admin User
 INSERT INTO user_credentials (id, password, role, name, email) VALUES 
-('admin', 'Sungroup@123admin', 'SUPER_ADMIN', 'System Administrator', 'admin@sungroup.edu');
+('admin', 'Sungroup@123admin', 'SUPER_ADMIN', 'System Administrator', 'admin@sungroup.edu')
+ON CONFLICT (id) DO NOTHING;
 
 
 

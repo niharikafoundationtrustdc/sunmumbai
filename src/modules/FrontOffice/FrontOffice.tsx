@@ -1909,7 +1909,7 @@ export const FrontOffice: React.FC = () => {
                         >
                           <option value="INFO">Information</option>
                           <option value="ALERT">Important Alert</option>
-                          {user?.role === 'ACCOUNTANT' && (
+                          {(user?.role === 'ACCOUNTANT' || user?.role === 'SUPER_ADMIN' || user?.role === 'COLLEGE_ADMIN' || user?.role === 'PRINCIPAL') && (
                             <option value="REMINDER">Fee Reminder</option>
                           )}
                         </select>

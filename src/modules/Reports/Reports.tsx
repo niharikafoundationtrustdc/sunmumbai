@@ -284,8 +284,9 @@ export const Reports: React.FC = () => {
   };
 
   const sendWhatsAppReminder = (studentName: string, amount: number, phone?: string) => {
-    if (user?.role !== 'ACCOUNTANT') {
-      alert('Permission Denied: Only Accountants can send fee reminders.');
+    const isAccountantOrAdmin = user?.role === 'ACCOUNTANT' || user?.role === 'SUPER_ADMIN' || user?.role === 'COLLEGE_ADMIN' || user?.role === 'PRINCIPAL';
+    if (!isAccountantOrAdmin) {
+      alert('Permission Denied: Only Accountants or Admins can send fee reminders.');
       return;
     }
     const message = `Dear Parent, this is a reminder regarding the pending fees of ₹${amount} for your ward ${studentName}. Please clear the dues at the earliest. - EduNexus College`;
